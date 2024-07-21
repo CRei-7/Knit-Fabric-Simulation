@@ -2,22 +2,58 @@ cmake_minimum_required(VERSION 3.0.0)
 project(physics_simulation_software VERSION 0.1.0)
 
 find_package(OpenGL REQUIRED)
+find_package(glfw3 REQUIRED)
 
+# include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
+set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/lib/external/imgui)
 
+# ImGui sources
+set(IMGUI_SOURCES
+    ${IMGUI_PATH}/imgui.cpp
+    ${IMGUI_PATH}/imgui_demo.cpp
+    ${IMGUI_PATH}/imgui_draw.cpp
+    ${IMGUI_PATH}/imgui_widgets.cpp
+    ${IMGUI_PATH}/imgui_tables.cpp
+    ${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
+    # ${IMGUI_PATH}/backends/imgui_impl_opengl3_loader.cpp
+)
+
+#ImGui headers
+set(IMGUI_HEADER
+    ${IMGUI_DIR}/imconfig.h
+    ${IMGUI_DIR}/imgui.h
+    ${IMGUI_DIR}/imgui_internal.h
+    ${IMGUI_DIR}/imstb_rectpack.h
+    ${IMGUI_DIR}/imstb_textedit.h
+    ${IMGUI_DIR}/imstb_truetype.h
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.h
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3_loader.h
+)
 
 # Add source files
 file(GLOB_RECURSE SOURCE_FILES 
-	${CMAKE_SOURCE_DIR}/src/*.c
-	${CMAKE_SOURCE_DIR}/src/*.cpp)
+${CMAKE_SOURCE_DIR}/src/*.c
+${CMAKE_SOURCE_DIR}/src/*.cpp)
+
+# Add header files
+file(GLOB RECURSE IMGUI_HEADERS
+${IMGUI_PATH}/*.h
+${IMGUI_PATH}/backends/*.h
+)
 
 # add executable
-add_executable(physics_simulation_software ${SOURCE_FILES})
+add_executable(physics_simulation_software ${SOURCE_FILES} ${IMGUI_SOURCES} ${IMGUI_HEADERS})
 
+# add_library(imgui STATIC ${IMGUI_SOURCES})
+target_include_directories(physics_simulation_software PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends ${IMGUI_HEADER})
 target_link_libraries(physics_simulation_software 
     glfw
     OpenGL::GL
 )
+
 
 # # Link libraries
 # if(WIN32)
