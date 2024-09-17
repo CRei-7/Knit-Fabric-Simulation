@@ -1,24 +1,39 @@
 #include "ImGuiManager.h"
+#include <iostream>
 
 ImGuiManager::ImGuiManager()
     : clear_color(ImVec4(0.45f, 0.55f, 0.60f, 1.00f)), show_demo_window(true), show_another_window(false)
 {
 }
 
-ImGuiManager::~ImGuiManager()
-{
-}
+ImGuiManager::~ImGuiManager(){}
 
 void ImGuiManager::Init(GLFWwindow* window, const char* glsl_version)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.Fonts->AddFontDefault();
+    menu_font = io.Fonts->AddFontFromFileTTF("../utils/fonts/Roboto-Regular.ttf", 20.0f); // Load font
+    if(menu_font == nullptr){
+        std::cerr << "Font file not found" << std::endl;
+    }
+    IM_ASSERT(menu_font != nullptr);
+
+    // Rebuild font atlas
+    io.Fonts->Build();
+
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
     // Setup Dear ImGui style
+    // ImGuiStyle& style = ImGui::GetStyle();
     ImGui::StyleColorsLight();
+
+    // // Increase menu bar height
+    // style.FramePadding.y = 10.0f; // Increase the padding inside menu items
+    // style.ItemSpacing.y = 5.0f;  // Increase spacing between menu items
+    // style.WindowPadding = ImVec2(0, 0); // Optional: adjust padding around the window if needed
 
     // Setup Platform/Renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -39,6 +54,10 @@ void ImGuiManager::EndFrame()
 
 void ImGuiManager::Render()
 {
+    ImGui::PushFont(menu_font);
+    ImGui::Text("This is some text using the custom font");
+    ImGui::PopFont();
+
     // 1. Show demo window
     if (show_demo_window)
         ImGui::ShowDemoWindow(&show_demo_window);
@@ -47,7 +66,7 @@ void ImGuiManager::Render()
     {
         static float f = 0.0f;
         static int counter = 0;
-
+        ImGui::PushFont(menu_font);
         ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
         ImGui::Text("This is some useful text.");
@@ -63,6 +82,7 @@ void ImGuiManager::Render()
         ImGui::Text("counter = %d", counter);
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::PopFont();
         ImGui::End();
     }
 }
@@ -78,6 +98,7 @@ void ImGuiManager::SetupMenuBar(GLFWwindow* window, bool* should_close)
 {
     if (ImGui::BeginMainMenuBar())
     {
+        ImGui::PushFont(menu_font);
         if (ImGui::BeginMenu("File"))
         {
             if (ImGui::MenuItem("New", "Ctrl+N")) { /* Handle new */ }
@@ -89,6 +110,7 @@ void ImGuiManager::SetupMenuBar(GLFWwindow* window, bool* should_close)
             if (ImGui::MenuItem("Exit Window", "Alt+F4")) { *should_close = true; }
             ImGui::EndMenu();
         }
+        ImGui::PopFont();
         ImGui::EndMainMenuBar();
     }
 }

@@ -28,6 +28,7 @@ private:
     ImVec4 clear_color;
     bool show_demo_window;
     bool show_another_window;
+    ImFont* menu_font;
 };
 
 #endif // IMGUIMANAGER_H
