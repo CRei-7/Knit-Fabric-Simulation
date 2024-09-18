@@ -4,6 +4,7 @@ project(physics_simulation_software VERSION 0.1.0)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(assimp REQUIRED)
+find_package(glm REQUIRED)
 
 # include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -54,6 +55,7 @@ target_link_libraries(physics_simulation_software
     glfw
     OpenGL::GL
     assimp
+    glm::glm
 )
 
 

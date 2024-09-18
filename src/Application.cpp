@@ -43,6 +43,7 @@ bool Application::Init()
 
     // Initialize ImGui
     imgui_manager.Init(window, glsl_version);
+
     return true;
 }
 
