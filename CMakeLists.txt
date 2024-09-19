@@ -35,6 +35,9 @@ set(IMGUI_HEADER
     ${IMGUI_DIR}/backends/imgui_impl_opengl3_loader.h
 )
 
+# STB image
+set(STB_IMAGE_SOURCE ${CMAKE_SOURCE_DIR}/lib/stb.cpp)
+
 # Add source files
 file(GLOB_RECURSE SOURCE_FILES
 ${CMAKE_SOURCE_DIR}/src/*.c
@@ -47,10 +50,11 @@ ${IMGUI_PATH}/backends/*.h
 )
 
 # add executable
-add_executable(physics_simulation_software ${SOURCE_FILES} ${IMGUI_SOURCES} ${IMGUI_HEADERS})
+add_executable(physics_simulation_software ${SOURCE_FILES} ${IMGUI_SOURCES} ${IMGUI_HEADERS} ${STB_IMAGE_SOURCE})
 
 # add_library(imgui STATIC ${IMGUI_SOURCES})
-target_include_directories(physics_simulation_software PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends ${IMGUI_HEADER})
+
+target_include_directories(physics_simulation_software PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends ${IMGUI_HEADER} ${CMAKE_SOURCE_DIR}/lib)
 target_link_libraries(physics_simulation_software
     glfw
     OpenGL::GL

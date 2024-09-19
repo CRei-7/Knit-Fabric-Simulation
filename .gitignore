@@ -33,3 +33,9 @@
 
 # build
 /build
+
+# obj files
+models/backpack/*
+
+# cache
+cache/*

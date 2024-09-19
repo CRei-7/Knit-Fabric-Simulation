@@ -1,12 +1,12 @@
+#include "stb/stb_image.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <stb_image.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include <Mesh.h>
-#include <Shader.h>
+#include "Mesh.h"
+#include "Shader.h"
 
 #include <string>
 #include <fstream>
@@ -16,14 +16,14 @@
 #include <vector>
 using namespace std;
 
-unsigned int TextureFromFile(const char *path, const string &directory);
+inline unsigned int TextureFromFile(const char *path, const string &directory);
 
 class Model
 {
 public:
     // model data
     vector<Texture> textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
-    vector<Mesh>    meshes;
+    vector<Mesh> meshes;
     string directory;
 
     // constructor, expects a filepath to a 3D model.
@@ -62,15 +62,18 @@ private:
     // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
     void processNode(aiNode *node, const aiScene *scene)
     {
+        // std::cout << "Processing node " << node->mName.C_Str() << std::endl;
         // process each mesh located at the current node
         for(unsigned int i = 0; i < node->mNumMeshes; i++)
         {
+            // std::cout<<"processing mesh "<<std::endl;
             // the node object only contains indices to index the actual objects in the scene.
             // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
             meshes.push_back(processMesh(mesh, scene));
         }
         // after we've processed all of the meshes (if any) we then recursively process each of the children nodes
+        // std::cout<<"processing children "<<std::endl;
         for(unsigned int i = 0; i < node->mNumChildren; i++)
         {
             processNode(node->mChildren[i], scene);
@@ -80,6 +83,7 @@ private:
 
     Mesh processMesh(aiMesh *mesh, const aiScene *scene)
     {
+        // std::cout<<"processing mesh inside the function"<<std::endl;
         // data to fill
         vector<Vertex> vertices;
         vector<unsigned int> indices;
@@ -115,12 +119,12 @@ private:
             }
             else
                 vertex.TexCoords = glm::vec2(0.0f, 0.0f);
-
             vertices.push_back(vertex);
         }
         // now walk through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
         for(unsigned int i = 0; i < mesh->mNumFaces; i++)
         {
+            // std::cout<<"processing face "<<std::endl;
             aiFace face = mesh->mFaces[i];
             // retrieve all indices of the face and store them in the indices vector
             for(unsigned int j = 0; j < face.mNumIndices; j++)
@@ -134,20 +138,18 @@ private:
         // diffuse: texture_diffuseN
         // specular: texture_specularN
         // normal: texture_normalN
-
         // 1. diffuse maps
         vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
         textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
         // 2. specular maps
         vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
         textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-        // 3. normal maps
-        std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-        textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-        // 4. height maps
-        std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-        textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-
+        // // 3. normal maps
+        // std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
+        // textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+        // // 4. height maps
+        // std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
+        // textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
         // return a mesh object created from the extracted mesh data
         return Mesh(vertices, indices, textures);
     }
@@ -175,6 +177,7 @@ private:
             if(!skip)
             {   // if texture hasn't been loaded already, load it
                 Texture texture;
+                std::cout<<this->directory<<std::endl;
                 texture.id = TextureFromFile(str.C_Str(), this->directory);
                 texture.type = typeName;
                 texture.path = str.C_Str();
@@ -187,7 +190,7 @@ private:
 };
 
 
-unsigned int TextureFromFile(const char *path, const string &directory, bool gamma)
+unsigned int TextureFromFile(const char *path, const string &directory)
 {
     string filename = string(path);
     filename = directory + '/' + filename;
@@ -197,6 +200,10 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
 
     int width, height, nrComponents;
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+    if (!data) {
+        std::cout << "Failed to load texture: " << filename << std::endl;
+        return 0;
+    }
     if (data)
     {
         GLenum format;
@@ -226,4 +233,3 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
 
     return textureID;
 }
-

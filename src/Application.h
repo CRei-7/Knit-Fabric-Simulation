@@ -1,7 +1,10 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "Shader.h"
+#include "Model.h"
 #include "ImGuiManager.h"
 
 class Application
@@ -12,6 +15,9 @@ public:
     bool Init();
     void MainLoop();
     void Cleanup();
+
+    Shader* ourShader;
+    Model* ourModel;
 
 private:
     GLFWwindow* window;
