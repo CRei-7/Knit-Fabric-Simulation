@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <iostream>
 
-
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -18,7 +17,6 @@ static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
-
 
 // Constructor
 Application::Application() : window(nullptr), glsl_version("#version 130") {}
@@ -72,7 +70,7 @@ bool Application::Init()
     }
 
     // Initialize ImGui
-    // imgui_manager.Init(window, glsl_version);
+    imgui_manager.Init(window, glsl_version);
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
@@ -81,7 +79,7 @@ bool Application::Init()
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
 
-    // //  build and compile shaders
+    // build and compile shaders
     std::cout << "Loading shaders" << std::endl;
     ourShader = new Shader("../shaders/vertex.vert", "../shaders/fragment.frag");
 
@@ -100,14 +98,14 @@ void Application::MainLoop()
     {
         bool should_close = false;
         glfwPollEvents();
-        // imgui_manager.BeginFrame();
+        imgui_manager.BeginFrame();
 
-        // imgui_manager.SetupMenuBar(window, &should_close);
+        imgui_manager.SetupMenuBar(window, &should_close);
         if (should_close)
             glfwSetWindowShouldClose(window, true);
-
+        imgui_manager.RenderWireframeToggle();
         // imgui_manager.Render();
-        // imgui_manager.EndFrame();
+        imgui_manager.EndFrame();
 
         // Rendering
         int display_w, display_h;
@@ -116,7 +114,7 @@ void Application::MainLoop()
         glViewport(0, 0, display_w, display_h);
         // const ImVec4& clear_color = imgui_manager.GetClearColor();
         // glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        // glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // // use shader
@@ -134,9 +132,10 @@ void Application::MainLoop()
         model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f)); // it's a bit too big for our scene, so scale it down
         ourShader->setMat4("model", model);
 
-        ourModel->Draw(*ourShader);
 
-        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ourModel->Draw(*ourShader, imgui_manager.wireframeMode);
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
     }
 }
@@ -144,7 +143,8 @@ void Application::MainLoop()
 // Cleanup resources
 void Application::Cleanup()
 {
-    // imgui_manager.Cleanup();
+    // Cleanup ImGui
+    imgui_manager.Cleanup();
 
     // // delete our shader
     delete ourShader;

@@ -12,11 +12,13 @@ public:
     ImGuiManager();
     ~ImGuiManager();
 
+    bool wireframeMode = false;
     void Init(GLFWwindow* window, const char* glsl_version);
     void BeginFrame();
     void EndFrame();
     void Render();
     void Cleanup();
+    void RenderWireframeToggle();
 
     void SetupMenuBar(GLFWwindow* window, bool* should_close);
 

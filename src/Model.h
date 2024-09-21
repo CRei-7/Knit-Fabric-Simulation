@@ -18,6 +18,7 @@ using namespace std;
 
 inline unsigned int TextureFromFile(const char *path, const string &directory);
 
+// loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the Mesh vector.
 class Model
 {
 public:
@@ -33,10 +34,18 @@ public:
     }
 
     // draws the model, and thus all its meshes
-    void Draw(Shader &shader)
+    void Draw(Shader &shader, bool wireframeMode=true)
     {
+        if (wireframeMode)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Enable wireframe mode
+        else
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Enable solid mode
+
         for(unsigned int i = 0; i < meshes.size(); i++)
             meshes[i].Draw(shader);
+
+        // Reset to default mode after drawing
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
 private:

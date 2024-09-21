@@ -2,7 +2,7 @@
 #include <iostream>
 
 ImGuiManager::ImGuiManager()
-    : clear_color(ImVec4(0.45f, 0.55f, 0.60f, 1.00f)), show_demo_window(true), show_another_window(false)
+    : clear_color(ImVec4(0.45f, 0.55f, 0.60f, 1.00f)), show_demo_window(false), show_another_window(false)
 {
 }
 
@@ -52,39 +52,43 @@ void ImGuiManager::EndFrame()
     ImGui::Render();
 }
 
-void ImGuiManager::Render()
+// void ImGuiManager::Render()
+// {
+//     // 2. Show a custom window
+//     {
+//         static float f = 0.0f;
+//         static int counter = 0;
+//         ImGui::PushFont(menu_font);
+//         ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+
+//         ImGui::Text("This is some useful text.");
+//         ImGui::Checkbox("Demo Window", &show_demo_window);
+//         ImGui::Checkbox("Another Window", &show_another_window);
+
+//         ImGui::SliderFloat("float", &f, 0.0f, 1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
+//         ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+//         if (ImGui::Button("Button"))
+//             counter++;
+//         ImGui::SameLine();
+//         ImGui::Text("counter = %d", counter);
+
+//         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+//         ImGui::PopFont();
+//         ImGui::End();
+//     }
+// }
+
+void ImGuiManager::RenderWireframeToggle()
 {
     ImGui::PushFont(menu_font);
-    ImGui::Text("This is some text using the custom font");
-    ImGui::PopFont();
-
-    // 1. Show demo window
-    if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
-
-    // 2. Show a custom window
+    ImGui::Begin("Mode Change");
+    if (ImGui::Button(wireframeMode ? "Solid Mode" : "Wireframe Mode",ImVec2(150,30)))
     {
-        static float f = 0.0f;
-        static int counter = 0;
-        ImGui::PushFont(menu_font);
-        ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
-
-        ImGui::Text("This is some useful text.");
-        ImGui::Checkbox("Demo Window", &show_demo_window);
-        ImGui::Checkbox("Another Window", &show_another_window);
-
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-        if (ImGui::Button("Button"))
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
-
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::PopFont();
-        ImGui::End();
+        wireframeMode = !wireframeMode;
     }
+    ImGui::PopFont();
+    ImGui::End();
 }
 
 void ImGuiManager::Cleanup()
