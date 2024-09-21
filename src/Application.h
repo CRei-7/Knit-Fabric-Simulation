@@ -6,8 +6,13 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <vector>
 #include <glm/glm.hpp>
+#include <random>
+#include <cmath>
 #include "ImGuiManager.h"
+#include "Particle.h"
+#include "Spring.h"
 
 class Application
 {
@@ -53,6 +58,9 @@ private:
     bool cKeyPressed;
     void mouse_callback(GLFWwindow* window, double xpos, double ypos);
     void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+
+    bool toggle_wind;
+    bool tKeyPressed;
 };
 
 #endif // APPLICATION_H

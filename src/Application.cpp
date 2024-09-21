@@ -10,7 +10,7 @@ static void glfw_error_callback(int error, const char* description)
 }
 
 // Constructor
-Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false) {}
+Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false), tKeyPressed(false) {}
 
 // Destructor
 Application::~Application() {}
@@ -45,6 +45,7 @@ bool Application::Init()
     //Tells GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     cursorVisible = false;
+    toggle_wind = false;
 
     glfwSwapInterval(1); // Enable vsync
 
@@ -123,38 +124,6 @@ void Application::SetupOpenGL() {
 
     glEnable(GL_DEPTH_TEST);//for depth testing
 
-    //vertices for rectangle
-    float vertices[] = {
-        // positions       
-         0.5f,  0.5f, 0.0f, // top right
-         0.5f, -0.5f, 0.0f,// bottom right
-        -0.5f, -0.5f, 0.0f,// bottom left
-        -0.5f,  0.5f, 0.0f,// top left 
-    };
-    unsigned int indices[] = {
-    0, 1, 3,   // first triangle
-    1, 2, 3    // second triangle
-    };
-
-    glGenBuffers(1, &VBO);
-    glGenVertexArrays(1, &VAO);
-
-    glGenBuffers(1, &EBO);
-
-    glBindVertexArray(VAO);//binds VAO
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);//buffer type of VBO is GL_ARRAY_BUFFER
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);//copies previously defined vertex data into the buffer's memory; last input can have three forms (check internet)
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); //(specifies which vertex attribute we want to configure (location=0), size of vertex attribute (vec3), type of data, if the data is to be normalized, stride (space between consecutive vertex attributes, offset))
-    glEnableVertexAttribArray(0);
-
-    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    //glEnableVertexAttribArray(1);
-
     //camera
     cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
     cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -178,6 +147,23 @@ void Application::processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
+    /*double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    // Check if the left mouse button is pressed
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        // Get window size
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+
+        // Convert to OpenGL normalized device coordinates (NDC)
+        float xNDC = (2.0f * xpos) / width - 1.0f;
+        float yNDC = 1.0f - (2.0f * ypos) / height;
+
+        // Print the OpenGL coordinates to the console
+        std::cout << "Mouse Click at OpenGL Coordinates: (" << xNDC << ", " << yNDC << ")\n";
+    }*/
+
     //For keyboard movement
     float cameraSpeed = 2.5f * deltaTime; //speed of camera movement
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -189,7 +175,7 @@ void Application::processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 
-    // Toggle cursor visibility with 'C'
+    // Toggles cursor visibility with 'C'
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
         if (!cKeyPressed) {
             cursorVisible = !cursorVisible;
@@ -206,15 +192,113 @@ void Application::processInput(GLFWwindow* window) {
         }
     }
 
-    // Reset the flag when the key is released
+    // Resets the flag when the key is released
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_RELEASE) {
         cKeyPressed = false;
     }
+
+    // Toggles wind with key 'T'
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+        if (!tKeyPressed) {
+            toggle_wind = !toggle_wind;
+            tKeyPressed = true;
+        }
+    }
+
+    // Resets the flag when the key is released
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE) {
+        tKeyPressed = false;
+    }
 }
+
+glm::vec3 getRandomWindDirection() {
+    // Creates a random number generator
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Uniform distribution for azimuthal angle (0 to 2*PI)
+    std::uniform_real_distribution<> azimuthalDist(0.0, 2.0 * glm::pi<float>());
+
+    // Uniform distribution for z component of the vector (cosine of the polar angle)
+    std::uniform_real_distribution<> zDist(-1.0, 1.0);
+
+    // Generates random azimuthal angle (phi)
+    float azimuthalAngle = static_cast<float>(azimuthalDist(gen));
+
+    // Generates random z component
+    float z = static_cast<float>(zDist(gen));
+
+    // Calculates the corresponding x and y components using azimuthal angle and radius (r = sqrt(1 - z^2))
+    float radius = std::sqrt(1.0f - z * z);
+    float x = radius * std::cos(azimuthalAngle);
+    float y = radius * std::sin(azimuthalAngle);
+
+    // Returns the random normalized vector
+    return glm::vec3(x, y, z);
+}
+
 
 // Main rendering loop
 void Application::MainLoop()
 {
+    // Grid parameters
+    int column = 10; // Number of columns
+    int row = 10;    // Number of rows
+    float disX = 0.1f; // Distance between particles in x direction
+    float disY = 0.1f; // Distance between particles in y direction
+    float initialY = 0.3f; // Y-coordinate for the top pinned particle
+    glm::vec3 Offset(-0.5f, 0.0f, 0.0f); // Offset for initial position
+    float k = 50.0f; // Structural Spring constant
+    float shearK = 10.5f; // Shear spring constant
+
+    float gravity = -0.02f;
+
+    // Wind parameters
+    glm::vec3 windDirection = getRandomWindDirection(); // Initial random wind direction
+    float windScale = 0.02f; // Base wind strength
+    float windOffsetSpeed = 0.1f; // Variability in wind strength
+    float windChangeInterval = 0.5f; // Time in seconds to change wind direction
+    float windTimer = 0.0f; // Timer for wind direction change
+
+    std::vector<Particle> particles;
+    particles.reserve(column * row); // Reserve space to avoid multiple allocations
+
+    // Initialization of particles
+    for (int i = 0; i < column; ++i) {
+        for (int j = 0; j < row; ++j) {
+            //Position for each particle
+            float xPos = i * disX + Offset.x;
+            float yPos = initialY - j * disY; // Starts from initialY and moves downward
+
+            bool staticParticle = j == 0; // Top row particles are static
+
+            particles.emplace_back(glm::vec3(xPos, yPos, 0.0f), staticParticle);
+        }
+    }
+
+    std::vector<Spring> springs;
+
+    // Initialization of springs
+    for (int i = 0; i < column; ++i) {
+        for (int j = 0; j < row; ++j) {
+            // Right edge, avoiding the addition of spring to the right side
+            if (i != column - 1) {
+                springs.emplace_back(k, disX, &particles[i * row + j], &particles[(i + 1) * row + j]);
+            }
+
+            // Bottom edge, avoiding the addition of spring to the bottom side
+            if (j != row - 1) {
+                springs.emplace_back(k, disY, &particles[i * row + j], &particles[i * row + (j + 1)]);
+            }
+
+            // Shear springs
+            if (i != column - 1 && j != row - 1) {
+                springs.emplace_back(shearK, sqrt(disX * disX + disY * disY), &particles[i * row + j], &particles[(i + 1) * row + (j + 1)]);
+                springs.emplace_back(shearK, sqrt(disX * disX + disY * disY), &particles[(i + 1) * row + j], &particles[i * row + (j + 1)]);
+            }
+        }
+    }
+
     while (!glfwWindowShouldClose(window))
     {
         bool should_close = false;
@@ -249,7 +333,7 @@ void Application::MainLoop()
         glUseProgram(shaderProgram);
 
         //for perspective transformation
-        glm::mat4 model = glm::mat4(1.0f);//transformations we'd like to apply to all object's vertices to the global world space
+        //glm::mat4 model = glm::mat4(1.0f);//transformations we'd like to apply to all object's vertices to the global world space
         glm::mat4 view = glm::mat4(1.0f);//to set the camera location
         glm::mat4 projection = glm::mat4(1.0f);//for perspective projection
 
@@ -260,26 +344,36 @@ void Application::MainLoop()
             cameraUp
         );//(position of camera, target position, up vector that is a vector pointing in positive y-direction)
 
-        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        //model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         //model = glm::rotate(model, (float)glfwGetTime() * glm::radians(-50.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         //view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
         projection = glm::perspective(glm::radians(fov), (float)display_w / (float)display_h, 0.1f, 100.0f);
 
-        // Retrieve the matrix uniform locations in the shader
-        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        unsigned int viewLoc = glGetUniformLocation(shaderProgram, "view");
-        unsigned int projectionLoc = glGetUniformLocation(shaderProgram, "projection");
+        // Update to the wind direction periodically
+        windTimer += deltaTime;
+        if (windTimer >= windChangeInterval) {
+            windDirection = getRandomWindDirection(); //Randomizes the wind direction
+            windTimer = 0.0f; //Timer reset
+        }
 
-        // Pass matrices to the shader
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));   // Pass model matrix
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));     // Pass view matrix
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection)); // Pass projection matrix
+        for (auto& particle : particles) {
+            if (toggle_wind) {
+                //Generates a random wind strength factor between -windOffsetSpeed and windOffsetSpeed
+                float noise = windScale + ((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * windOffsetSpeed;
+                glm::vec3 wind = windDirection * noise;
+                particle.applyForce(wind);
+            }
 
-        glBindVertexArray(VAO);
-        //glDrawArrays(GL_TRIANGLES, 0, 3);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//GL_LINE for wireframe,GL_FILL for filled
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+            particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
+            particle.update(deltaTime);
+            particle.render(shaderProgram, view, projection);
+        }
+
+        // Update and render springs
+        for (auto& spring : springs) {
+            spring.update();
+            spring.render(shaderProgram, view, projection);
+        }
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
