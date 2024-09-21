@@ -1,7 +1,14 @@
 #include "Application.h"
-#include <stdio.h>
+#include "Camera.h"
+#include "InputHandler.h"
+#include <stb/stb_image.h>
+#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <stdio.h>
+#include <iostream>
+#include  "Constants.h"
+
 
 // Error callback function
 static void glfw_error_callback(int error, const char* description)
@@ -20,35 +27,35 @@ bool Application::Init()
 {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
+    {
+        fprintf(stderr, "Failed to initialize GLFW\n");
         return false;
-
+    }
     // Setup OpenGL context version
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create window
-    window = glfwCreateWindow(1280, 720, "Dear ImGui", nullptr, nullptr);
-    if (window == nullptr)
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Model Loading", nullptr, nullptr);
+    if (window == nullptr){
+        fprintf(stderr, "Failed to create GLFW window\n");
         return false;
+    }
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1); // Enable vsync
+
     glfwSetWindowUserPointer(window, this);
-    glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xposIn, double yposIn) {
-        static_cast<Application*>(glfwGetWindowUserPointer(window))->mouse_callback(window, xposIn, yposIn);
-    });
-    glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
-        static_cast<Application*>(glfwGetWindowUserPointer(window))->scroll_callback(window, xoffset, yoffset);
-    });
-    //glfwSetCursorPosCallback(window, mouse_callback);
-    //glfwSetScrollCallback(window, scroll_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     //Tells GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    cursorVisible = false;
-    toggle_wind = false;
+    // cursorVisible = false;
+    toggle_wind = true;
 
-    glfwSwapInterval(1); // Enable vsync
-
+    // Initialize GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD\n";
         return false;
@@ -57,209 +64,29 @@ bool Application::Init()
     // Initialize ImGui
     imgui_manager.Init(window, glsl_version);
 
-    SetupOpenGL();
+    // For model loading
+    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+    stbi_set_flip_vertically_on_load(true);
+
+    // configure global opengl state
+    // -----------------------------
+    glEnable(GL_DEPTH_TEST);
+
+    // build and compile shaders
+    std::cout << "Loading shaders" << std::endl;
+    importedModelShader = new Shader("../shaders/modelVertex.vert", "../shaders/modelFragment.frag");
+    clothShader = new Shader("../shaders/VertShader.glsl", "../shaders/FragShader.glsl");
+
+    std::cout << "Loading models" << std::endl;
+    // // load models
+    ourModel = new Model("../models/backpack/backpack.obj");
 
     return true;
 }
 
-std::string Application::readShaderSource(const char* filePath) {
-    std::string content;
-    std::ifstream fileStream(filePath, std::ios::in);
-    std::string line = "";
-    while (!fileStream.eof()) {
-        getline(fileStream, line);
-        content.append(line + "\n");
-    }
-    fileStream.close();
-    return content;
-}
-
-void Application::SetupOpenGL() {
-    //reads the glsl file
-    std::string vertShaderStr = readShaderSource("VertShader.glsl");
-    std::string fragShaderStr = readShaderSource("FragShader.glsl");
-    const char* vertexShaderSource = vertShaderStr.c_str();
-    const char* fragmentShaderSource = fragShaderStr.c_str();
-
-    //compilation of shaders
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);//(shader Object ot compile to, number of strings, actual source code, NULL)
-    glCompileShader(vertexShader);
-
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    //To check the success of the compilation of shaders
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    //Linking shaders
-    //GLuint shaderProgram;
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    //To check for the linking errors
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-
-    //shader objects are no longer needed
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    glEnable(GL_DEPTH_TEST);//for depth testing
-
-    //camera
-    cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-    cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-    cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    int display_w, display_h;
-    glfwGetFramebufferSize(window, &display_w, &display_h);
-    firstMouse = true;
-    yaw = -90.0f;	// yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left.
-    pitch = 0.0f;
-    lastX = display_w / 2.0;
-    lastY = display_h / 2.0;
-    fov = 45.0f;
-
-    deltaTime = 0.0f;
-    lastFrame = 0.0f;
-}
-
-void Application::processInput(GLFWwindow* window) {
-    //Esc for closing the window
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-
-    /*double xpos, ypos;
-    glfwGetCursorPos(window, &xpos, &ypos);
-
-    // Check if the left mouse button is pressed
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-        // Get window size
-        int width, height;
-        glfwGetWindowSize(window, &width, &height);
-
-        // Convert to OpenGL normalized device coordinates (NDC)
-        float xNDC = (2.0f * xpos) / width - 1.0f;
-        float yNDC = 1.0f - (2.0f * ypos) / height;
-
-        // Print the OpenGL coordinates to the console
-        std::cout << "Mouse Click at OpenGL Coordinates: (" << xNDC << ", " << yNDC << ")\n";
-    }*/
-
-    //For keyboard movement
-    float cameraSpeed = 2.5f * deltaTime; //speed of camera movement
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-
-    // Toggles cursor visibility with 'C'
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-        if (!cKeyPressed) {
-            cursorVisible = !cursorVisible;
-
-            if (cursorVisible) {
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Show cursor
-            }
-            else {
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hide cursor
-                firstMouse = true;
-            }
-
-            cKeyPressed = true;
-        }
-    }
-
-    // Resets the flag when the key is released
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_RELEASE) {
-        cKeyPressed = false;
-    }
-
-    // Toggles wind with key 'T'
-    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
-        if (!tKeyPressed) {
-            toggle_wind = !toggle_wind;
-            tKeyPressed = true;
-        }
-    }
-
-    // Resets the flag when the key is released
-    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE) {
-        tKeyPressed = false;
-    }
-}
-
-glm::vec3 getRandomWindDirection() {
-    // Creates a random number generator
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    // Uniform distribution for azimuthal angle (0 to 2*PI)
-    std::uniform_real_distribution<> azimuthalDist(0.0, 2.0 * glm::pi<float>());
-
-    // Uniform distribution for z component of the vector (cosine of the polar angle)
-    std::uniform_real_distribution<> zDist(-1.0, 1.0);
-
-    // Generates random azimuthal angle (phi)
-    float azimuthalAngle = static_cast<float>(azimuthalDist(gen));
-
-    // Generates random z component
-    float z = static_cast<float>(zDist(gen));
-
-    // Calculates the corresponding x and y components using azimuthal angle and radius (r = sqrt(1 - z^2))
-    float radius = std::sqrt(1.0f - z * z);
-    float x = radius * std::cos(azimuthalAngle);
-    float y = radius * std::sin(azimuthalAngle);
-
-    // Returns the random normalized vector
-    return glm::vec3(x, y, z);
-}
-
-
 // Main rendering loop
 void Application::MainLoop()
 {
-    // Grid parameters
-    int column = 10; // Number of columns
-    int row = 10;    // Number of rows
-    float disX = 0.1f; // Distance between particles in x direction
-    float disY = 0.1f; // Distance between particles in y direction
-    float initialY = 0.3f; // Y-coordinate for the top pinned particle
-    glm::vec3 Offset(-0.5f, 0.0f, 0.0f); // Offset for initial position
-    float k = 50.0f; // Structural Spring constant
-    float shearK = 10.5f; // Shear spring constant
-
-    float gravity = -0.02f;
-
-    // Wind parameters
-    glm::vec3 windDirection = getRandomWindDirection(); // Initial random wind direction
-    float windScale = 0.02f; // Base wind strength
-    float windOffsetSpeed = 0.1f; // Variability in wind strength
-    float windChangeInterval = 0.5f; // Time in seconds to change wind direction
-    float windTimer = 0.0f; // Timer for wind direction change
-
     std::vector<Particle> particles;
     particles.reserve(column * row); // Reserve space to avoid multiple allocations
 
@@ -308,46 +135,53 @@ void Application::MainLoop()
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        processInput(window);
+        processInput(window, deltaTime);
 
         glfwPollEvents();
         imgui_manager.BeginFrame();
-
         imgui_manager.SetupMenuBar(window, &should_close);
+
         if (should_close)
             glfwSetWindowShouldClose(window, true);
 
-        imgui_manager.Render();
+        imgui_manager.RenderWireframeToggle();
+        // imgui_manager.Render();
         imgui_manager.EndFrame();
 
         // Rendering
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
+
         glViewport(0, 0, display_w, display_h);
-        const ImVec4& clear_color = imgui_manager.GetClearColor();
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);//clear the depth buffer at each iteration
+        // const ImVec4& clear_color = imgui_manager.GetClearColor();
+        // glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        // glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //activates the shader
-        glUseProgram(shaderProgram);
+        // use shaders
+        importedModelShader->use();
 
-        //for perspective transformation
-        //glm::mat4 model = glm::mat4(1.0f);//transformations we'd like to apply to all object's vertices to the global world space
-        glm::mat4 view = glm::mat4(1.0f);//to set the camera location
-        glm::mat4 projection = glm::mat4(1.0f);//for perspective projection
+        // view/projection transformations for imported model
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        importedModelShader->setMat4("projection", projection);
+        importedModelShader->setMat4("view", view);
 
-        //camera/view transformation
-        view = glm::lookAt(
-            cameraPos,
-            cameraPos + cameraFront,
-            cameraUp
-        );//(position of camera, target position, up vector that is a vector pointing in positive y-direction)
+        // render the loaded model
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f)); // it's a bit too big for our scene, so scale it down
+        importedModelShader->setMat4("model", model);
 
-        //model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        //model = glm::rotate(model, (float)glfwGetTime() * glm::radians(-50.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        //view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-        projection = glm::perspective(glm::radians(fov), (float)display_w / (float)display_h, 0.1f, 100.0f);
+        ourModel->Draw(*importedModelShader, imgui_manager.wireframeMode);
+
+        // Now use cloth shader
+        clothShader->use();
+
+        // Set view/projection for cloth shader
+        clothShader->setMat4("projection", projection);
+        clothShader->setMat4("view", view);
+        clothShader->setMat4("model", model);
 
         // Update to the wind direction periodically
         windTimer += deltaTime;
@@ -366,13 +200,13 @@ void Application::MainLoop()
 
             particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
             particle.update(deltaTime);
-            particle.render(shaderProgram, view, projection);
+            particle.render(clothShader->ID, view, projection);
         }
 
         // Update and render springs
         for (auto& spring : springs) {
             spring.update();
-            spring.render(shaderProgram, view, projection);
+            spring.render(clothShader->ID, view, projection);
         }
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -380,58 +214,19 @@ void Application::MainLoop()
     }
 }
 
-void Application::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
-    if (cursorVisible) {
-        return;
-    }
-    
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-
-    if (firstMouse) {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
-
-    float sensitivity = 0.1f;//For mouse sensitivity
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    //To prevent screen from getting flipped
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 front;
-    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front.y = sin(glm::radians(pitch));
-    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(front);
-}
-
-void Application::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    fov -= (float)yoffset;
-    if (fov < 1.0f)
-        fov = 1.0f;
-    if (fov > 45.0f)
-        fov = 45.0f;
-}
 
 // Cleanup resources
 void Application::Cleanup()
 {
+    // Cleanup ImGui
     imgui_manager.Cleanup();
+
+    // // delete our shader
+    delete importedModelShader;
+    delete clothShader;
+    // // delete our model
+    delete ourModel;
+
     glfwDestroyWindow(window);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);

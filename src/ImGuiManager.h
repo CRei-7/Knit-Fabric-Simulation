@@ -12,11 +12,13 @@ public:
     ImGuiManager();
     ~ImGuiManager();
 
+    bool wireframeMode = false;
     void Init(GLFWwindow* window, const char* glsl_version);
     void BeginFrame();
     void EndFrame();
     void Render();
     void Cleanup();
+    void RenderWireframeToggle();
 
     void SetupMenuBar(GLFWwindow* window, bool* should_close);
 
@@ -28,6 +30,7 @@ private:
     ImVec4 clear_color;
     bool show_demo_window;
     bool show_another_window;
+    ImFont* menu_font;
 };
 
 #endif // IMGUIMANAGER_H
