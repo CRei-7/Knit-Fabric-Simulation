@@ -1,16 +1,13 @@
 #include "Application.h"
 #include "Camera.h"
+#include "Mouse.h"
 #include <stb/stb_image.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <stdio.h>
 #include <iostream>
-
-// settings
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
-
+#include  "Constants.h"
 
 // Error callback function
 static void glfw_error_callback(int error, const char* description)
@@ -24,12 +21,6 @@ Application::Application() : window(nullptr), glsl_version("#version 130") {}
 // Destructor
 Application::~Application() {}
 
-// camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
-
 // Initialize GLFW, OpenGL, and ImGui
 bool Application::Init()
 {
@@ -40,28 +31,19 @@ bool Application::Init()
         return false;
     }
 
-    // Setup OpenGL context version
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-    glsl_version = "#version 100";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-#elif defined(__APPLE__)
-    glsl_version = "#version 150";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
     // Create window
-    window = glfwCreateWindow(1280, 720, "Model Loading", nullptr, nullptr);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Model Loading", nullptr, nullptr);
     if (window == nullptr){
         fprintf(stderr, "Failed to create GLFW window\n");
         return false;
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+
+    // tell GLFW to capture our mouse
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     // Initialize GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -72,6 +54,7 @@ bool Application::Init()
     // Initialize ImGui
     imgui_manager.Init(window, glsl_version);
 
+    // For model loading
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
 
@@ -93,16 +76,16 @@ bool Application::Init()
 // Main rendering loop
 void Application::MainLoop()
 {
-    std::cout << "Entering main loop" << std::endl;
     while (!glfwWindowShouldClose(window))
     {
         bool should_close = false;
         glfwPollEvents();
         imgui_manager.BeginFrame();
-
         imgui_manager.SetupMenuBar(window, &should_close);
+
         if (should_close)
             glfwSetWindowShouldClose(window, true);
+
         imgui_manager.RenderWireframeToggle();
         // imgui_manager.Render();
         imgui_manager.EndFrame();
