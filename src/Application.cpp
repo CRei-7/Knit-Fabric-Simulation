@@ -124,6 +124,7 @@ void Application::SetupOpenGL() {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
+    glEnable(GL_CULL_FACE);//for shading two sides of the mesh with different colors
     glEnable(GL_DEPTH_TEST);//for depth testing
 
     //camera
@@ -319,7 +320,96 @@ void Application::setupCloth() {
             }
         }
     }
+
+    setupClothMesh(particles, column, row);
 }
+
+
+void Application::setupClothMesh(const std::vector<Particle>& particles, int column, int row) {
+    vertices.clear();
+    indices.clear();
+
+    // Store particle positions as vertices
+    for (const auto& particle : particles) {
+        vertices.push_back(particle.getPosition());
+    }
+
+    // Generate the indices for triangles between neighboring particles
+    for (int i = 0; i < column - 1; ++i) {
+        for (int j = 0; j < row - 1; ++j) {
+            // Top-left triangle
+            indices.push_back(i * row + j);
+            indices.push_back((i + 1) * row + j);
+            indices.push_back(i * row + (j + 1));
+
+            // Bottom-right triangle
+            indices.push_back((i + 1) * row + (j + 1));
+            indices.push_back(i * row + (j + 1));
+            indices.push_back((i + 1) * row + j);
+        }
+    }
+
+    // Generate VAO, VBO, and EBO for the mesh
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    glBindVertexArray(VAO);
+
+    // Bind VBO for vertex positions
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_DYNAMIC_DRAW);
+
+    // Set vertex attributes for position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Bind EBO for indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), &indices[0], GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
+void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Particle>& particles, const glm::mat4& view, const glm::mat4& projection) {
+    glUseProgram(shaderProgram);
+
+    // Set model, view, projection matrices
+    glm::mat4 model = glm::mat4(1.0f);
+    GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
+    GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
+    GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Update particle positions in the vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    for (int i = 0; i < particles.size(); ++i) {
+        vertices[i] = particles[i].getPosition();  // Update vertex positions
+    }
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(glm::vec3), &vertices[0]);
+
+    // Bind VAO
+    glBindVertexArray(VAO);
+
+    // Render front faces (side 1)
+    glCullFace(GL_BACK);  // Cull the back faces, render front faces
+    GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
+    glm::vec3 frontColor(0.0f, 0.0f, 0.0f); // Color for the front face
+    glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+
+    // Render back faces (side 2)
+    glCullFace(GL_FRONT);  // Cull the front faces, render back faces
+    glm::vec3 backColor(0.8f, 0.3f, 0.3f); // Color for the back face
+    glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
 
 // Main rendering loop
 void Application::MainLoop()
@@ -384,9 +474,6 @@ void Application::MainLoop()
             cameraUp
         );//(position of camera, target position, up vector that is a vector pointing in positive y-direction)
 
-        //model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        //model = glm::rotate(model, (float)glfwGetTime() * glm::radians(-50.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        //view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
         projection = glm::perspective(glm::radians(fov), (float)display_w / (float)display_h, 0.1f, 100.0f);
 
         // Update to the wind direction periodically
@@ -426,6 +513,8 @@ void Application::MainLoop()
 
         //Cube.render(shaderProgram, view, projection);
         Sphere.render(shaderProgram, view, projection);
+
+        renderClothMesh(shaderProgram, particles, view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);

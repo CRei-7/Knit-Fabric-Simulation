@@ -7,5 +7,5 @@ uniform mat4 model;
 
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
-    gl_PointSize = 0.05; // Size of the particle (you can adjust this value)
+    gl_PointSize = 0.05; // Size of the particle
 }
