@@ -10,7 +10,7 @@ static void glfw_error_callback(int error, const char* description)
 }
 
 // Constructor
-Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false), tKeyPressed(false) {}
+Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false), tKeyPressed(false), oKeyPressed(false) {}
 
 // Destructor
 Application::~Application() {}
@@ -46,6 +46,8 @@ bool Application::Init()
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     cursorVisible = false;
     toggle_wind = false;
+    toggleClothOrientation = true;
+    clothNeedsReset = false;
 
     glfwSwapInterval(1); // Enable vsync
 
@@ -209,6 +211,21 @@ void Application::processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE) {
         tKeyPressed = false;
     }
+
+    // Toggles wind with key 'O'
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
+        if (!oKeyPressed) {
+            toggleClothOrientation = !toggleClothOrientation;
+            clothNeedsReset = true;
+            oKeyPressed = true;
+
+        }
+    }
+
+    // Resets the flag when the key is released
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
+        oKeyPressed = false;
+    }
 }
 
 glm::vec3 getRandomWindDirection() {
@@ -237,48 +254,52 @@ glm::vec3 getRandomWindDirection() {
     return glm::vec3(x, y, z);
 }
 
-
-// Main rendering loop
-void Application::MainLoop()
-{
+void Application::setupCloth() {
     // Grid parameters
-    int column = 10; // Number of columns
-    int row = 10;    // Number of rows
-    float disX = 0.1f; // Distance between particles in x direction
-    float disY = 0.1f; // Distance between particles in y direction
+    int column = 20; // Number of columns
+    int row = 20;    // Number of rows
+    float disX = 0.05f; // Distance between particles in x direction
+    float disY = 0.05f; // Distance between particles in y direction
     float initialY = 0.3f; // Y-coordinate for the top pinned particle
     glm::vec3 Offset(-0.5f, 0.0f, 0.0f); // Offset for initial position
-    float k = 50.0f; // Structural Spring constant
+    float k = 100.0f; // Structural Spring constant
     float shearK = 10.5f; // Shear spring constant
 
-    float gravity = -0.02f;
+    gravity = -0.05f;
 
     // Wind parameters
-    glm::vec3 windDirection = getRandomWindDirection(); // Initial random wind direction
-    float windScale = 0.02f; // Base wind strength
-    float windOffsetSpeed = 0.1f; // Variability in wind strength
-    float windChangeInterval = 0.5f; // Time in seconds to change wind direction
-    float windTimer = 0.0f; // Timer for wind direction change
+    windDirection = getRandomWindDirection(); // Initial random wind direction
+    windScale = 0.02f; // Base wind strength
+    windOffsetSpeed = 0.1f; // Variability in wind strength
+    windChangeInterval = 0.5f; // Time in seconds to change wind direction
+    windTimer = 0.0f; // Timer for wind direction change
 
-    std::vector<Particle> particles;
     particles.reserve(column * row); // Reserve space to avoid multiple allocations
 
-    // Initialization of particles
-    for (int i = 0; i < column; ++i) {
-        for (int j = 0; j < row; ++j) {
-            //Position for each particle
-            float xPos = i * disX + Offset.x;
-            float yPos = initialY - j * disY; // Starts from initialY and moves downward
-
-            bool staticParticle = j == 0; // Top row particles are static
-
-            particles.emplace_back(glm::vec3(xPos, yPos, 0.0f), staticParticle);
+    if (toggleClothOrientation) {
+        // Initialize particles as (x, y, 0)
+        for (int i = 0; i < column; ++i) {
+            for (int j = 0; j < row; ++j) {
+                float xPos = i * disX + Offset.x;
+                float yPos = initialY - j * disY; // Starts from initialY and moves downward
+                bool staticParticle = j == 0; // Top row particles are static
+                particles.emplace_back(glm::vec3(xPos, yPos, 0.0f), staticParticle);
+            }
+        }
+    }
+    else {
+        // Initialize particles as (x, 0, z)
+        for (int i = 0; i < column; ++i) {
+            for (int j = 0; j < row; ++j) {
+                float xPos = i * disX + Offset.x;
+                float zPos = j * disY; // Use disY for Z direction when orientation is different
+                bool staticParticle = false; // j == 0; // First row static in this orientation
+                particles.emplace_back(glm::vec3(xPos, 0.0f, zPos), staticParticle);
+            }
         }
     }
 
-    std::vector<Spring> springs;
-
-    // Initialization of springs
+    // Initialize springs (same for both orientations)
     for (int i = 0; i < column; ++i) {
         for (int j = 0; j < row; ++j) {
             // Right edge, avoiding the addition of spring to the right side
@@ -298,6 +319,17 @@ void Application::MainLoop()
             }
         }
     }
+}
+
+// Main rendering loop
+void Application::MainLoop()
+{
+    setupCloth();
+    //Object Cube;
+    //Cube.SetupCube(0.25f, glm::vec3(0.0f, -0.2f, 0.5f));
+
+    Object Sphere;
+    Sphere.SetupSphere(0.1f, glm::vec3(0.0, -0.2, 0.5));
 
     while (!glfwWindowShouldClose(window))
     {
@@ -309,6 +341,14 @@ void Application::MainLoop()
         lastFrame = currentFrame;
 
         processInput(window);
+
+        // Check if cloth needs to be reset due to orientation toggle
+        if (clothNeedsReset) {
+            particles.clear();  // Clear previous particles
+            springs.clear();    // Clear previous springs
+            setupCloth();       // Re-setup the cloth with the new orientation
+            clothNeedsReset = false;  // Reset the flag
+        }
 
         glfwPollEvents();
         imgui_manager.BeginFrame();
@@ -333,7 +373,7 @@ void Application::MainLoop()
         glUseProgram(shaderProgram);
 
         //for perspective transformation
-        //glm::mat4 model = glm::mat4(1.0f);//transformations we'd like to apply to all object's vertices to the global world space
+        glm::mat4 model = glm::mat4(1.0f);//transformations we'd like to apply to all object's vertices to the global world space
         glm::mat4 view = glm::mat4(1.0f);//to set the camera location
         glm::mat4 projection = glm::mat4(1.0f);//for perspective projection
 
@@ -357,6 +397,14 @@ void Application::MainLoop()
         }
 
         for (auto& particle : particles) {
+            //resolveCollision(particle, Cube);
+            for (int i = 0; i < 20; ++i) {
+                //Collision::resolveCollision(particle, Cube, deltaTime);
+                Collision::resolveCollision(particle, Sphere, deltaTime);
+            }
+
+            Collision::resolveSelfCollision(particle, particles); // Check self-collision
+
             if (toggle_wind) {
                 //Generates a random wind strength factor between -windOffsetSpeed and windOffsetSpeed
                 float noise = windScale + ((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * windOffsetSpeed;
@@ -366,14 +414,18 @@ void Application::MainLoop()
 
             particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
             particle.update(deltaTime);
+
             particle.render(shaderProgram, view, projection);
         }
 
         // Update and render springs
         for (auto& spring : springs) {
             spring.update();
-            spring.render(shaderProgram, view, projection);
+            spring.render(shaderProgram, model, view, projection);
         }
+
+        //Cube.render(shaderProgram, view, projection);
+        Sphere.render(shaderProgram, view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);

@@ -13,6 +13,8 @@
 #include "ImGuiManager.h"
 #include "Particle.h"
 #include "Spring.h"
+#include "Object.h"
+#include "Collision.h"
 
 class Application
 {
@@ -55,12 +57,29 @@ private:
     std::string readShaderSource(const char* filePath);
 
     bool cursorVisible;//This is used to make sure when cursor is visible, yaw or pitch doesn't occur
-    bool cKeyPressed;
+    bool cKeyPressed;//Press 'C' for toggling of visibility of cursor
     void mouse_callback(GLFWwindow* window, double xpos, double ypos);
     void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
     bool toggle_wind;
-    bool tKeyPressed;
+    bool tKeyPressed;//Press 'T' for wind
+    void setupCloth();
+
+    bool toggleClothOrientation;//true for hanging cloth and false for falling cloth
+    bool oKeyPressed;//Press 'O' for change in orientation
+    bool clothNeedsReset;//for reseting cloth for new orientation
+
+    //cloth parameters
+    float windTimer;
+    float windChangeInterval;
+    glm::vec3 windDirection;
+    float windScale;
+    float windOffsetSpeed;
+    float gravity;
+
+    std::vector<Particle> particles;
+    std::vector<Spring> springs;
+
 };
 
 #endif // APPLICATION_H

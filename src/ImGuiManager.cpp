@@ -40,8 +40,8 @@ void ImGuiManager::EndFrame()
 void ImGuiManager::Render()
 {
     // 1. Show demo window
-    if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
+    //if (show_demo_window)
+    //    ImGui::ShowDemoWindow(&show_demo_window);
 
     // 2. Show a custom window
     {
