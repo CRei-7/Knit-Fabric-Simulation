@@ -36,6 +36,7 @@ private:
     GLuint VBO;//Vertex Buffer Object which stores a large number of vertices in the GPU's memory
     GLuint VAO;//Vertex Array Object whcih stores all the vertex attribute settings in a single object
     GLuint EBO;//Element Buffer Object for referencing values in VBO using indices
+    GLuint normalVBO;
 
     glm::vec3 cameraPos;//camera position
     glm::vec3 cameraFront;//for specifying the direction in which camera is pointing
@@ -81,9 +82,12 @@ private:
     std::vector<Spring> springs;
     std::vector<glm::vec3> vertices;
     std::vector<GLuint> indices;
+    std::vector<glm::vec3> normals;
 
     void setupClothMesh(const std::vector<Particle>& particles, int column, int row);
     void renderClothMesh(GLuint shaderProgram, const std::vector<Particle>& particles, const glm::mat4& view, const glm::mat4& projection);
+
+    glm::vec3 lightPos;  //light position
 };
 
 #endif // APPLICATION_H

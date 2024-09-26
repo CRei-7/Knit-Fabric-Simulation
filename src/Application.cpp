@@ -124,13 +124,15 @@ void Application::SetupOpenGL() {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    glEnable(GL_CULL_FACE);//for shading two sides of the mesh with different colors
     glEnable(GL_DEPTH_TEST);//for depth testing
+    glEnable(GL_CULL_FACE);//for shading two sides of the mesh with different colors
 
     //camera
     cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
     cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    lightPos = glm::vec3(0.0f, 1.0f, 0.0f);
 
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -294,8 +296,8 @@ void Application::setupCloth() {
             for (int j = 0; j < row; ++j) {
                 float xPos = i * disX + Offset.x;
                 float zPos = j * disY; // Use disY for Z direction when orientation is different
-                bool staticParticle = false; // j == 0; // First row static in this orientation
-                particles.emplace_back(glm::vec3(xPos, 0.0f, zPos), staticParticle);
+                bool staticParticle = false; // j == 0; //First row static in this orientation
+                particles.emplace_back(glm::vec3(xPos, 0.22f, zPos), staticParticle);
             }
         }
     }
@@ -328,10 +330,12 @@ void Application::setupCloth() {
 void Application::setupClothMesh(const std::vector<Particle>& particles, int column, int row) {
     vertices.clear();
     indices.clear();
+    normals.clear();
 
     // Store particle positions as vertices
     for (const auto& particle : particles) {
         vertices.push_back(particle.getPosition());
+        normals.push_back(glm::vec3(0.0f));  // Initialize normals
     }
 
     // Generate the indices for triangles between neighboring particles
@@ -349,9 +353,29 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
         }
     }
 
+    // Calculate normals
+    for (int i = 0; i < indices.size(); i += 3) {
+        glm::vec3 v0 = vertices[indices[i]];
+        glm::vec3 v1 = vertices[indices[i + 1]];
+        glm::vec3 v2 = vertices[indices[i + 2]];
+
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+
+        normals[indices[i]] += normal;
+        normals[indices[i + 1]] += normal;
+        normals[indices[i + 2]] += normal;
+    }
+
+    for (auto& normal : normals) {
+        normal = glm::normalize(normal);
+    }
+
     // Generate VAO, VBO, and EBO for the mesh
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
+    glGenBuffers(1, &normalVBO);
     glGenBuffers(1, &EBO);
 
     glBindVertexArray(VAO);
@@ -364,12 +388,19 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
+    // Bind VBO for normals
+    glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(1);
+
     // Bind EBO for indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), &indices[0], GL_STATIC_DRAW);
 
     glBindVertexArray(0);
 }
+
 
 void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Particle>& particles, const glm::mat4& view, const glm::mat4& projection) {
     glUseProgram(shaderProgram);
@@ -390,19 +421,32 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     }
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(glm::vec3), &vertices[0]);
 
+    // Update normals buffer if needed (if particles have moved significantly)
+    glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, normals.size() * sizeof(glm::vec3), &normals[0]);
+
+    // Set light properties (light position, view position, and color)
+    GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
+    glUniform3fv(lightPosLoc, 1, glm::value_ptr(lightPos));
+   
+
+    glm::vec3 viewPos = cameraPos;  // Camera/view position
+    GLuint viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
+    glUniform3fv(viewPosLoc, 1, glm::value_ptr(viewPos));
+
     // Bind VAO
     glBindVertexArray(VAO);
 
     // Render front faces (side 1)
     glCullFace(GL_BACK);  // Cull the back faces, render front faces
     GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
-    glm::vec3 frontColor(0.0f, 0.0f, 0.0f); // Color for the front face
+    glm::vec3 frontColor(1.0f, 0.0f, 0.0f);  // Color for the front face
     glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
     // Render back faces (side 2)
     glCullFace(GL_FRONT);  // Cull the front faces, render back faces
-    glm::vec3 backColor(0.8f, 0.3f, 0.3f); // Color for the back face
+    glm::vec3 backColor(1.0f, 0.0f, 0.0f);  // Color for the back face
     glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
@@ -411,15 +455,17 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 }
 
 
+
+
 // Main rendering loop
 void Application::MainLoop()
 {
     setupCloth();
     //Object Cube;
-    //Cube.SetupCube(0.25f, glm::vec3(0.0f, -0.2f, 0.5f));
+    //Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
 
     Object Sphere;
-    Sphere.SetupSphere(0.1f, glm::vec3(0.0, -0.2, 0.5));
+    Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
 
     while (!glfwWindowShouldClose(window))
     {
@@ -461,6 +507,10 @@ void Application::MainLoop()
 
         //activates the shader
         glUseProgram(shaderProgram);
+
+        glm::vec3 lightColor(1.0f, 1.0f, 1.0f);  // White light
+        GLuint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+        glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
         //for perspective transformation
         glm::mat4 model = glm::mat4(1.0f);//transformations we'd like to apply to all object's vertices to the global world space
@@ -511,8 +561,8 @@ void Application::MainLoop()
             spring.render(shaderProgram, model, view, projection);
         }
 
-        //Cube.render(shaderProgram, view, projection);
-        Sphere.render(shaderProgram, view, projection);
+        //Cube.render(shaderProgram, view, projection, lightPos, cameraPos);
+        Sphere.render(shaderProgram, view, projection, lightPos, cameraPos);
 
         renderClothMesh(shaderProgram, particles, view, projection);
 

@@ -34,53 +34,53 @@ public:
         halfLength = length / 2.0f;
 
         vertices = {
-            // Front face
-            center.x - halfLength, center.y - halfLength, center.z + halfLength,
-            center.x + halfLength, center.y - halfLength, center.z + halfLength,
-            center.x + halfLength, center.y + halfLength, center.z + halfLength,
-            center.x + halfLength, center.y + halfLength, center.z + halfLength,
-            center.x - halfLength, center.y + halfLength, center.z + halfLength,
-            center.x - halfLength, center.y - halfLength, center.z + halfLength,
+            // Front face (counter-clockwise winding order)
+            center.x - halfLength, center.y - halfLength, center.z + halfLength,  0.0f,  0.0f,  1.0f,
+            center.x - halfLength, center.y + halfLength, center.z + halfLength,  0.0f,  0.0f,  1.0f,
+            center.x + halfLength, center.y + halfLength, center.z + halfLength,  0.0f,  0.0f,  1.0f,
+            center.x + halfLength, center.y + halfLength, center.z + halfLength,  0.0f,  0.0f,  1.0f,
+            center.x + halfLength, center.y - halfLength, center.z + halfLength,  0.0f,  0.0f,  1.0f,
+            center.x - halfLength, center.y - halfLength, center.z + halfLength,  0.0f,  0.0f,  1.0f,
 
-            // Back face
-            center.x - halfLength, center.y - halfLength, center.z - halfLength,
-            center.x + halfLength, center.y - halfLength, center.z - halfLength,
-            center.x + halfLength, center.y + halfLength, center.z - halfLength,
-            center.x + halfLength, center.y + halfLength, center.z - halfLength,
-            center.x - halfLength, center.y + halfLength, center.z - halfLength,
-            center.x - halfLength, center.y - halfLength, center.z - halfLength,
+            // Back face (counter-clockwise when viewed from behind, CW when viewed from front)
+            center.x - halfLength, center.y - halfLength, center.z - halfLength,  0.0f,  0.0f, -1.0f,
+            center.x + halfLength, center.y - halfLength, center.z - halfLength,  0.0f,  0.0f, -1.0f,
+            center.x + halfLength, center.y + halfLength, center.z - halfLength,  0.0f,  0.0f, -1.0f,
+            center.x + halfLength, center.y + halfLength, center.z - halfLength,  0.0f,  0.0f, -1.0f,
+            center.x - halfLength, center.y + halfLength, center.z - halfLength,  0.0f,  0.0f, -1.0f,
+            center.x - halfLength, center.y - halfLength, center.z - halfLength,  0.0f,  0.0f, -1.0f,
 
-            // Left face
-            center.x - halfLength, center.y + halfLength, center.z + halfLength,
-            center.x - halfLength, center.y + halfLength, center.z - halfLength,
-            center.x - halfLength, center.y - halfLength, center.z - halfLength,
-            center.x - halfLength, center.y - halfLength, center.z - halfLength,
-            center.x - halfLength, center.y - halfLength, center.z + halfLength,
-            center.x - halfLength, center.y + halfLength, center.z + halfLength,
+            // Left face (counter-clockwise when viewed from outside)
+            center.x - halfLength, center.y - halfLength, center.z - halfLength, -1.0f,  0.0f,  0.0f,
+            center.x - halfLength, center.y + halfLength, center.z - halfLength, -1.0f,  0.0f,  0.0f,
+            center.x - halfLength, center.y + halfLength, center.z + halfLength, -1.0f,  0.0f,  0.0f,
+            center.x - halfLength, center.y + halfLength, center.z + halfLength, -1.0f,  0.0f,  0.0f,
+            center.x - halfLength, center.y - halfLength, center.z + halfLength, -1.0f,  0.0f,  0.0f,
+            center.x - halfLength, center.y - halfLength, center.z - halfLength, -1.0f,  0.0f,  0.0f,
 
-            // Right face
-            center.x + halfLength, center.y + halfLength, center.z + halfLength,
-            center.x + halfLength, center.y + halfLength, center.z - halfLength,
-            center.x + halfLength, center.y - halfLength, center.z - halfLength,
-            center.x + halfLength, center.y - halfLength, center.z - halfLength,
-            center.x + halfLength, center.y - halfLength, center.z + halfLength,
-            center.x + halfLength, center.y + halfLength, center.z + halfLength,
+            // Right face (counter-clockwise when viewed from outside)
+            center.x + halfLength, center.y - halfLength, center.z - halfLength,  1.0f,  0.0f,  0.0f,
+            center.x + halfLength, center.y - halfLength, center.z + halfLength,  1.0f,  0.0f,  0.0f,
+            center.x + halfLength, center.y + halfLength, center.z + halfLength,  1.0f,  0.0f,  0.0f,
+            center.x + halfLength, center.y + halfLength, center.z + halfLength,  1.0f,  0.0f,  0.0f,
+            center.x + halfLength, center.y + halfLength, center.z - halfLength,  1.0f,  0.0f,  0.0f,
+            center.x + halfLength, center.y - halfLength, center.z - halfLength,  1.0f,  0.0f,  0.0f,
 
-            // Bottom face
-            center.x - halfLength, center.y - halfLength, center.z - halfLength,
-            center.x + halfLength, center.y - halfLength, center.z - halfLength,
-            center.x + halfLength, center.y - halfLength, center.z + halfLength,
-            center.x + halfLength, center.y - halfLength, center.z + halfLength,
-            center.x - halfLength, center.y - halfLength, center.z + halfLength,
-            center.x - halfLength, center.y - halfLength, center.z - halfLength,
+            // Bottom face (Clockwise winding)
+            center.x - halfLength, center.y - halfLength, center.z - halfLength,  0.0f, -1.0f,  0.0f,
+            center.x - halfLength, center.y - halfLength, center.z + halfLength,  0.0f, -1.0f,  0.0f,
+            center.x + halfLength, center.y - halfLength, center.z + halfLength,  0.0f, -1.0f,  0.0f,
+            center.x + halfLength, center.y - halfLength, center.z + halfLength,  0.0f, -1.0f,  0.0f,
+            center.x + halfLength, center.y - halfLength, center.z - halfLength,  0.0f, -1.0f,  0.0f,
+            center.x - halfLength, center.y - halfLength, center.z - halfLength,  0.0f, -1.0f,  0.0f,
 
-            // Top face
-            center.x - halfLength, center.y + halfLength, center.z - halfLength,
-            center.x + halfLength, center.y + halfLength, center.z - halfLength,
-            center.x + halfLength, center.y + halfLength, center.z + halfLength,
-            center.x + halfLength, center.y + halfLength, center.z + halfLength,
-            center.x - halfLength, center.y + halfLength, center.z + halfLength,
-            center.x - halfLength, center.y + halfLength, center.z - halfLength
+            // Top face (Clockwise winding)
+            center.x - halfLength, center.y + halfLength, center.z + halfLength,  0.0f,  1.0f,  0.0f,
+            center.x - halfLength, center.y + halfLength, center.z - halfLength,  0.0f,  1.0f,  0.0f,
+            center.x + halfLength, center.y + halfLength, center.z - halfLength,  0.0f,  1.0f,  0.0f,
+            center.x + halfLength, center.y + halfLength, center.z - halfLength,  0.0f,  1.0f,  0.0f,
+            center.x + halfLength, center.y + halfLength, center.z + halfLength,  0.0f,  1.0f,  0.0f,
+            center.x - halfLength, center.y + halfLength, center.z + halfLength,  0.0f,  1.0f,  0.0f
         };
 
         // Generate VAO, VBO
@@ -92,44 +92,61 @@ public:
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
         // Position attribute
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
+
+        // Normal attribute
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
     }
 
+
     void SetupSphere(float radius, const glm::vec3& sphereCenter, int sectorCount = 36, int stackCount = 18) {
         objectType = ObjectType::Sphere;
         center = sphereCenter;
-        halfLength = radius;
+        halfLength = radius; // In case of a sphere, halfLength is the radius
         vertices.clear();
         indices.clear();
 
         float x, y, z, xy;                              // Vertex position
+        float nx, ny, nz, lengthInv = 1.0f / radius;    // Normalized vertex normal
         float sectorStep = 2 * glm::pi<float>() / sectorCount;
         float stackStep = glm::pi<float>() / stackCount;
         float sectorAngle, stackAngle;
 
+        // Compute vertices for sphere (position and normal)
         for (int i = 0; i <= stackCount; ++i) {
-            stackAngle = glm::pi<float>() / 2 - i * stackStep; // from pi/2 to -pi/2
-            xy = radius * cosf(stackAngle);             // r * cos(u)
-            z = radius * sinf(stackAngle);              // r * sin(u)
+            stackAngle = glm::pi<float>() / 2 - i * stackStep; // From pi/2 to -pi/2
+            xy = radius * cosf(stackAngle);                    // r * cos(u)
+            z = radius * sinf(stackAngle);                     // r * sin(u)
 
             for (int j = 0; j <= sectorCount; ++j) {
-                sectorAngle = j * sectorStep;           // from 0 to 2pi
-                x = xy * cosf(sectorAngle);             // r * cos(u) * cos(v)
-                y = xy * sinf(sectorAngle);             // r * cos(u) * sin(v)
+                sectorAngle = j * sectorStep;                  // From 0 to 2pi
+
+                // Vertex position (x, y, z)
+                x = xy * cosf(sectorAngle);                    // r * cos(u) * cos(v)
+                y = xy * sinf(sectorAngle);                    // r * cos(u) * sin(v)
                 vertices.push_back(x + center.x);
                 vertices.push_back(y + center.y);
                 vertices.push_back(z + center.z);
+
+                // Normalized normal (nx, ny, nz)
+                nx = x * lengthInv;
+                ny = y * lengthInv;
+                nz = z * lengthInv;
+                vertices.push_back(nx);
+                vertices.push_back(ny);
+                vertices.push_back(nz);
             }
         }
 
-        int k1, k2;
+        // Compute indices for sphere (triangles)
         for (int i = 0; i < stackCount; ++i) {
-            k1 = i * (sectorCount + 1);     // beginning of current stack
-            k2 = k1 + sectorCount + 1;      // beginning of next stack
+            int k1 = i * (sectorCount + 1); // Beginning of current stack
+            int k2 = k1 + sectorCount + 1;  // Beginning of next stack
 
             for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
                 if (i != 0) {
@@ -146,49 +163,74 @@ public:
             }
         }
 
-        // Generate VAO, VBO, and EBO (element buffer for indices)
+        /*// Compute indices for sphere (triangles)
+        for (int i = 0; i < stackCount; ++i) {
+            int k1 = i * (sectorCount + 1); // Beginning of current stack
+            int k2 = k1 + sectorCount + 1;  // Beginning of next stack
+
+            for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+                if (i != 0) {
+                    // Reverse the winding order here
+                    indices.push_back(k2);
+                    indices.push_back(k1);
+                    indices.push_back(k1 + 1);
+                }
+
+                if (i != (stackCount - 1)) {
+                    // Reverse the winding order here as well
+                    indices.push_back(k2 + 1);
+                    indices.push_back(k2);
+                    indices.push_back(k1 + 1);
+                }
+            }
+        }*/
+
+        // Generate VAO, VBO, EBO
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
         glGenBuffers(1, &EBO);
 
         glBindVertexArray(VAO);
 
-        // Vertex buffer
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // Index buffer
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // Position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        // Normal attribute
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
         glBindVertexArray(0);
     }
 
-    void render(GLuint shaderProgram, const glm::mat4& view, const glm::mat4& projection) {
+
+    void render(GLuint shaderProgram, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& lightPos, const glm::vec3& viewPos) {
         glm::mat4 model = glm::mat4(1.0f);
 
         glUseProgram(shaderProgram);
 
-        GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
-        GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
-        GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        // Set uniform matrices
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-        GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
-        glUniform3fv(colorLoc, 1, &color[0]);
+        // Set lighting uniforms
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(lightPos));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(viewPos));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "Color"), 1, glm::value_ptr(color));
 
         glBindVertexArray(VAO);
         if (objectType == ObjectType::Cube) {
-            glDrawArrays(GL_TRIANGLES, 0, 36); // Cube uses arrays, not indices
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         else {
-            glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0); // Sphere uses indices
+            glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
         }
         glBindVertexArray(0);
 
