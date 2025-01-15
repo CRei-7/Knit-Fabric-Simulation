@@ -1,5 +1,4 @@
 #include "Application.h"
-#include "Camera.h"
 #include "InputHandler.h"
 #include <stb/stb_image.h>
 #include <glm/glm.hpp>
@@ -7,14 +6,16 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <stdio.h>
 #include <iostream>
-#include  "Constants.h"
-
 
 // Error callback function
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
+
+float modelRotation = 0.0f;
+bool isRotating = false;
+bool g_ImGuiWantCaptureMouse = false;
 
 // Constructor
 Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false), tKeyPressed(false) {}
@@ -51,9 +52,11 @@ bool Application::Init()
     glfwSetScrollCallback(window, scroll_callback);
 
     //Tells GLFW to capture our mouse
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    // cursorVisible = false;
-    toggle_wind = true;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    cursorVisible = false;
+    toggle_wind = false;
+    toggleClothOrientation = true;
+    clothNeedsReset = false;
 
     // Initialize GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -74,12 +77,12 @@ bool Application::Init()
 
     // build and compile shaders
     std::cout << "Loading shaders" << std::endl;
-    importedModelShader = new Shader("../shaders/modelVertex.vert", "../shaders/modelFragment.frag");
+    // importedModelShader = new Shader("../shaders/modelVertex.vert", "../shaders/modelFragment.frag");
     clothShader = new Shader("../shaders/VertShader.glsl", "../shaders/FragShader.glsl");
-
-    std::cout << "Loading models" << std::endl;
+    cloth = new Cloth(20, 20, 0.05f, 100.0f);
+    // std::cout << "Loading models" << std::endl;
     // // load models
-    ourModel = new Model("../models/backpack/backpack.obj");
+    // ourModel = new Model("../models/backpack/backpack.obj");
 
     return true;
 }
@@ -87,45 +90,6 @@ bool Application::Init()
 // Main rendering loop
 void Application::MainLoop()
 {
-    std::vector<Particle> particles;
-    particles.reserve(column * row); // Reserve space to avoid multiple allocations
-
-    // Initialization of particles
-    for (int i = 0; i < column; ++i) {
-        for (int j = 0; j < row; ++j) {
-            //Position for each particle
-            float xPos = i * disX + Offset.x;
-            float yPos = initialY - j * disY; // Starts from initialY and moves downward
-
-            bool staticParticle = j == 0; // Top row particles are static
-
-            particles.emplace_back(glm::vec3(xPos, yPos, 0.0f), staticParticle);
-        }
-    }
-
-    std::vector<Spring> springs;
-
-    // Initialization of springs
-    for (int i = 0; i < column; ++i) {
-        for (int j = 0; j < row; ++j) {
-            // Right edge, avoiding the addition of spring to the right side
-            if (i != column - 1) {
-                springs.emplace_back(k, disX, &particles[i * row + j], &particles[(i + 1) * row + j]);
-            }
-
-            // Bottom edge, avoiding the addition of spring to the bottom side
-            if (j != row - 1) {
-                springs.emplace_back(k, disY, &particles[i * row + j], &particles[i * row + (j + 1)]);
-            }
-
-            // Shear springs
-            if (i != column - 1 && j != row - 1) {
-                springs.emplace_back(shearK, sqrt(disX * disX + disY * disY), &particles[i * row + j], &particles[(i + 1) * row + (j + 1)]);
-                springs.emplace_back(shearK, sqrt(disX * disX + disY * disY), &particles[(i + 1) * row + j], &particles[i * row + (j + 1)]);
-            }
-        }
-    }
-
     while (!glfwWindowShouldClose(window))
     {
         bool should_close = false;
@@ -139,6 +103,7 @@ void Application::MainLoop()
 
         glfwPollEvents();
         imgui_manager.BeginFrame();
+        g_ImGuiWantCaptureMouse = ImGui::GetIO().WantCaptureMouse;
         imgui_manager.SetupMenuBar(window, &should_close);
 
         if (should_close)
@@ -158,62 +123,43 @@ void Application::MainLoop()
         // glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // use shaders
-        importedModelShader->use();
+        // // use shaders
+        // importedModelShader->use();
 
-        // view/projection transformations for imported model
+        // // view/projection transformations for imported model
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        importedModelShader->setMat4("projection", projection);
-        importedModelShader->setMat4("view", view);
+        // importedModelShader->setMat4("projection", projection);
+        // importedModelShader->setMat4("view", view);
 
-        // render the loaded model
+        // // render the loaded model
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 0.0f)); // translate it down so it's at the left of the scene
+        model = glm::rotate(model, glm::radians(modelRotation), glm::vec3(0.0f, 1.0f, 0.0f)); // rotate around Y-axis
         model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f)); // it's a bit too big for our scene, so scale it down
-        importedModelShader->setMat4("model", model);
+        // importedModelShader->setMat4("model", model);
 
-        ourModel->Draw(*importedModelShader, imgui_manager.wireframeMode);
-
-        // Now use cloth shader
-        clothShader->use();
-
-        // Set view/projection for cloth shader
-        clothShader->setMat4("projection", projection);
-        clothShader->setMat4("view", view);
-        clothShader->setMat4("model", model);
+        // ourModel->Draw(*importedModelShader, imgui_manager.wireframeMode);
 
         // Update to the wind direction periodically
-        windTimer += deltaTime;
-        if (windTimer >= windChangeInterval) {
-            windDirection = getRandomWindDirection(); //Randomizes the wind direction
-            windTimer = 0.0f; //Timer reset
-        }
+        // windTimer += deltaTime;
+        // if (windTimer >= windChangeInterval) {
+        //     windDirection = getRandomWindDirection(); //Randomizes the wind direction
+        //     windTimer = 0.0f; //Timer reset
+        // }
 
-        for (auto& particle : particles) {
-            if (toggle_wind) {
-                //Generates a random wind strength factor between -windOffsetSpeed and windOffsetSpeed
-                float noise = windScale + ((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * windOffsetSpeed;
-                glm::vec3 wind = windDirection * noise;
-                particle.applyForce(wind);
-            }
+        // cloth->update(deltaTime, toggle_wind);
+        // if (toggle_wind) {
+        //     glm::vec3 windForce = getRandomWindDirection() * windScale;
+        //     cloth->applyWindForce(windForce, windScale, windOffsetSpeed);
+        // }
 
-            particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
-            particle.update(deltaTime);
-            particle.render(clothShader->ID, view, projection);
-        }
-
-        // Update and render springs
-        for (auto& spring : springs) {
-            spring.update();
-            spring.render(clothShader->ID, view, projection);
-        }
+        cloth->render(*clothShader, view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
     }
 }
-
 
 // Cleanup resources
 void Application::Cleanup()
@@ -221,11 +167,12 @@ void Application::Cleanup()
     // Cleanup ImGui
     imgui_manager.Cleanup();
 
-    // // delete our shader
+    // delete our shader
     delete importedModelShader;
     delete clothShader;
-    // // delete our model
+    // delete our model
     delete ourModel;
+    delete cloth;
 
     glfwDestroyWindow(window);
     glDeleteVertexArrays(1, &VAO);

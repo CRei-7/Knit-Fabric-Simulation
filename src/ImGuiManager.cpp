@@ -97,12 +97,29 @@ void ImGuiManager::Cleanup()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
+void ImGuiManager::SetupMenuBarStyle()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    // Store the original style
+    ImGuiStyle oldStyle = style;
+
+    // Apply menu bar specific style
+    style.FramePadding.y = 8.0f;
+    style.ItemSpacing.y = 8.0f;
+    style.WindowPadding.y = 8.0f;
+    style.FramePadding.x = 8.0f;
+    style.ItemSpacing.x = 8.0f;
+    style.WindowPadding.x = 8.0f;
+
+}
 
 void ImGuiManager::SetupMenuBar(GLFWwindow* window, bool* should_close)
 {
+    SetupMenuBarStyle();
+    ImGui::PushFont(menu_font);
     if (ImGui::BeginMainMenuBar())
     {
-        ImGui::PushFont(menu_font);
         if (ImGui::BeginMenu("File"))
         {
             if (ImGui::MenuItem("New", "Ctrl+N")) { /* Handle new */ }
@@ -114,9 +131,9 @@ void ImGuiManager::SetupMenuBar(GLFWwindow* window, bool* should_close)
             if (ImGui::MenuItem("Exit Window", "Alt+F4")) { *should_close = true; }
             ImGui::EndMenu();
         }
-        ImGui::PopFont();
         ImGui::EndMainMenuBar();
     }
+    ImGui::PopFont();
 }
 
 ImVec4& ImGuiManager::GetClearColor()

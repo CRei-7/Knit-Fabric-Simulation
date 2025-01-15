@@ -62,8 +62,8 @@ private:
             return;
         }
         // retrieve the directory path of the filepath
+        std::cout<<path<<std::endl;
         directory = path.substr(0, path.find_last_of('/'));
-
         // process ASSIMP's root node recursively
         processNode(scene->mRootNode, scene);
     }
@@ -154,11 +154,11 @@ private:
         vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
         textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
         // // 3. normal maps
-        // std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-        // textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+        std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
+        textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
         // // 4. height maps
-        // std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-        // textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+        std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
+        textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
         // return a mesh object created from the extracted mesh data
         return Mesh(vertices, indices, textures);
     }
@@ -197,7 +197,6 @@ private:
         return textures;
     }
 };
-
 
 unsigned int TextureFromFile(const char *path, const string &directory)
 {

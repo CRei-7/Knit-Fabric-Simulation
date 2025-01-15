@@ -21,6 +21,7 @@ public:
     void RenderWireframeToggle();
 
     void SetupMenuBar(GLFWwindow* window, bool* should_close);
+    void SetupMenuBarStyle();
 
     ImVec4& GetClearColor();
     bool& ShowDemoWindow();

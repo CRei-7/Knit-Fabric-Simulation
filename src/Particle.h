@@ -12,7 +12,7 @@ private:
     glm::vec3 acceleration;
     float mass;
     bool isStatic;
-    glm::vec3 color;
+    glm::vec3 color;// for particle color
     float radius;
 
     // OpenGL vertex buffer
@@ -20,7 +20,7 @@ private:
 
 public:
     Particle(glm::vec3 pos = glm::vec3(0.0f), bool pinned = false, float particleMass = 10.0f)
-        : position(pos), previousPosition(pos), acceleration(0.0f), mass(particleMass), isStatic(pinned), radius(0.05f), color(glm::vec3(0.0f, 1.0f, 0.0f)) {}
+        : position(pos), previousPosition(pos), acceleration(0.0f), mass(particleMass), isStatic(pinned), radius(0.005f), color(glm::vec3(0.0f, 1.0f, 0.0f)) {}
 
     void applyForce(const glm::vec3& force) {
         if (!isStatic) {
@@ -37,6 +37,10 @@ public:
         }
     }
 
+    void setPreviousPosition(const glm::vec3& prevPos) {
+        previousPosition = prevPos;
+    }
+
     void setPosition(const glm::vec3& pos) {
         position = pos;
         previousPosition = pos;
@@ -44,6 +48,14 @@ public:
 
     glm::vec3 getPosition() const {
         return position;
+    }
+
+    glm::vec3 getPreviousPosition() const {
+        return previousPosition;
+    }
+
+    float getRadius() const {
+        return radius;
     }
 
     void render(GLuint shaderProgram, const glm::mat4& view, const glm::mat4& projection) {
@@ -80,11 +92,11 @@ public:
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         // Sets the particle color in the shader
-        GLint colorLoc = glGetUniformLocation(shaderProgram, "particleColor");
+        GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
         glUniform3fv(colorLoc, 1, &color[0]);
 
         // Rendering of the particle as a point
-        glPointSize(radius * 100.0f); // Adjust point size based on radius
+        glPointSize(5.5f); // Adjust point size based on radius
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, 1);
         glBindVertexArray(0);

@@ -12,6 +12,8 @@ bool leftMouseButtonPressed = false;
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+    if(g_ImGuiWantCaptureMouse)
+        return;
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS)
             leftMouseButtonPressed = true;
@@ -22,6 +24,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
+    if(!g_ImGuiWantCaptureMouse)
+        return;
     if (!leftMouseButtonPressed) {
           lastX = xposIn;
           lastY = yposIn;
@@ -68,6 +72,29 @@ void processInput(GLFWwindow* window, float deltaTime)
         // Print the OpenGL coordinates to the console
         std::cout << "Mouse Click at OpenGL Coordinates: (" << xNDC << ", " << yNDC << ")\n";
     }*/
+    // Handle spacebar press for model rotation
+    static bool spacePressed = false;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    {
+        if (!spacePressed)
+        {
+            isRotating = !isRotating;
+            spacePressed = true;
+        }
+    }
+    else
+    {
+        spacePressed = false;
+    }
+
+    // Update rotation if isRotating is true
+    if (isRotating)
+    {
+        modelRotation += 90.0f * deltaTime; // Rotate 90 degrees per second
+        if (modelRotation >= 360.0f)
+            modelRotation -= 360.0f;
+    }
+
 
     //For keyboard movement
     float cameraSpeed = 2.5f * deltaTime; //speed of camera movement

@@ -10,9 +10,9 @@
 #include <vector>
 #include "Shader.h"
 #include "Model.h"
+#include "Camera.h"
 #include "ImGuiManager.h"
-#include "Particle.h"
-#include "Spring.h"
+#include "Cloth.h"
 
 class Application
 {
@@ -30,13 +30,14 @@ public:
     Shader* importedModelShader;
     Shader* clothShader;
     Model* ourModel;
+    Cloth* cloth;
+    Camera camera;
 
 private:
     GLFWwindow* window;
     ImGuiManager imgui_manager;
     const char* glsl_version;
 
-    // GLuint shaderProgram;
     GLuint vertexArray;
     GLuint vertexBuffer;
 
@@ -47,6 +48,10 @@ private:
     bool toggle_wind;
     bool cKeyPressed;
     bool tKeyPressed;
+    bool cursorVisible;
+    bool toggleClothOrientation;//true for hanging cloth and false for falling cloth
+    bool oKeyPressed;//Press 'O' for change in orientation
+    bool clothNeedsReset;//for reseting cloth for new orientation
 };
 
 #endif // APPLICATION_H

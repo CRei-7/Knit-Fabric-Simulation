@@ -14,9 +14,11 @@ private:
     float k;       // Spring constant
     float restLength;  // Rest length of the spring
 
+    glm::vec3 color;// for spring color
+
 public:
     Spring(float _k, float _length, Particle* _p1, Particle* _p2)
-        : k(_k), restLength(_length), p1(_p1), p2(_p2) {}
+        : k(_k), restLength(_length), p1(_p1), p2(_p2), color(glm::vec3(1.0f, 1.0f, 1.0f)) {}
 
     // Applies Hooke's Law to update forces between the particles
     void update() {
@@ -33,12 +35,12 @@ public:
     }
 
     // Rendering of the spring as a line between two particles
-    void render(GLuint shaderProgram, const glm::mat4& view, const glm::mat4& projection) {
+    void render(GLuint shaderProgram, const glm::mat4& model,const glm::mat4& view, const glm::mat4& projection) {
         // Uses the shader program
         glUseProgram(shaderProgram);
 
         //Initialization of model matrix as identity since no additional transformation is applied to the spring itself
-        glm::mat4 model = glm::mat4(1.0f);
+        //glm::mat4 model = glm::mat4(1.0f);
 
         // Passing the matrices to the shader
         GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
@@ -47,6 +49,10 @@ public:
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Sets the color of spring
+        GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
+        glUniform3fv(colorLoc, 1, &color[0]);
 
         // Vertices for the spring (positions of p1 and p2)
         glm::vec3 lineVertices[2] = {
