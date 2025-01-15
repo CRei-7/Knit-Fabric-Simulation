@@ -15,6 +15,7 @@
 #include "Spring.h"
 #include "Object.h"
 #include "Collision.h"
+#include "Shader.h"
 
 class Application
 {
@@ -25,12 +26,13 @@ public:
     void MainLoop();
     void Cleanup();
 
+    Shader* shader;
+
 private:
     GLFWwindow* window;
     ImGuiManager imgui_manager;
     const char* glsl_version;
-    GLuint shaderProgram;
-    GLuint vertexArray;
+    // GLuint vertexArray;
     GLuint vertexBuffer;
 
     GLuint VBO;//Vertex Buffer Object which stores a large number of vertices in the GPU's memory

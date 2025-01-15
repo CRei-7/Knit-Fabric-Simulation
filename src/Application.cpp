@@ -19,8 +19,10 @@ Application::~Application() {}
 bool Application::Init()
 {
     glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit())
+    if (!glfwInit()){
+        std::cerr << "Failed to initialize GLFW" << std::endl;
         return false;
+    }
 
     // Setup OpenGL context version
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -30,7 +32,11 @@ bool Application::Init()
     // Create window
     window = glfwCreateWindow(1280, 720, "Dear ImGui", nullptr, nullptr);
     if (window == nullptr)
-        return false;
+    {
+        std::cerr << "Failed to create GLFW window" << std::endl;
+                glfwTerminate();
+                return false;
+    }
     glfwMakeContextCurrent(window);
     glfwSetWindowUserPointer(window, this);
     glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xposIn, double yposIn) {
@@ -58,71 +64,16 @@ bool Application::Init()
 
     // Initialize ImGui
     imgui_manager.Init(window, glsl_version);
+    std::cout << "ImGui initialized" << std::endl;
+
+    shader = new Shader("../shaders/VertShader.vert", "../shaders/FragShader.frag");
 
     SetupOpenGL();
 
     return true;
 }
 
-std::string Application::readShaderSource(const char* filePath) {
-    std::string content;
-    std::ifstream fileStream(filePath, std::ios::in);
-    std::string line = "";
-    while (!fileStream.eof()) {
-        getline(fileStream, line);
-        content.append(line + "\n");
-    }
-    fileStream.close();
-    return content;
-}
-
 void Application::SetupOpenGL() {
-    //reads the glsl file
-    std::string vertShaderStr = readShaderSource("VertShader.glsl");
-    std::string fragShaderStr = readShaderSource("FragShader.glsl");
-    const char* vertexShaderSource = vertShaderStr.c_str();
-    const char* fragmentShaderSource = fragShaderStr.c_str();
-
-    //compilation of shaders
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);//(shader Object ot compile to, number of strings, actual source code, NULL)
-    glCompileShader(vertexShader);
-
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    //To check the success of the compilation of shaders
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    //Linking shaders
-    //GLuint shaderProgram;
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    //To check for the linking errors
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-
-    //shader objects are no longer needed
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
 
     glEnable(GL_DEPTH_TEST);//for depth testing
     glEnable(GL_CULL_FACE);//for shading two sides of the mesh with different colors
@@ -428,7 +379,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     // Set light properties (light position, view position, and color)
     GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
     glUniform3fv(lightPosLoc, 1, glm::value_ptr(lightPos));
-   
+
 
     glm::vec3 viewPos = cameraPos;  // Camera/view position
     GLuint viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
@@ -506,10 +457,10 @@ void Application::MainLoop()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);//clear the depth buffer at each iteration
 
         //activates the shader
-        glUseProgram(shaderProgram);
+        glUseProgram(shader->shaderProgram);
 
         glm::vec3 lightColor(1.0f, 1.0f, 1.0f);  // White light
-        GLuint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+        GLuint lightColorLoc = glGetUniformLocation(shader->shaderProgram, "lightColor");
         glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
         //for perspective transformation
@@ -552,19 +503,19 @@ void Application::MainLoop()
             particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
             particle.update(deltaTime);
 
-            particle.render(shaderProgram, view, projection);
+            particle.render(shader->shaderProgram, view, projection);
         }
 
         // Update and render springs
         for (auto& spring : springs) {
             spring.update();
-            spring.render(shaderProgram, model, view, projection);
+            spring.render(shader->shaderProgram, model, view, projection);
         }
 
         //Cube.render(shaderProgram, view, projection, lightPos, cameraPos);
-        Sphere.render(shaderProgram, view, projection, lightPos, cameraPos);
+        Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
 
-        renderClothMesh(shaderProgram, particles, view, projection);
+        renderClothMesh(shader->shaderProgram, particles, view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
@@ -575,7 +526,7 @@ void Application::mouse_callback(GLFWwindow* window, double xposIn, double yposI
     if (cursorVisible) {
         return;
     }
-    
+
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 

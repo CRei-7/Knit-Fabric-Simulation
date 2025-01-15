@@ -1,0 +1,22 @@
+// Folder-specific settings
+//
+// For a full list of overridable settings, and general information on folder-specific settings,
+// see the documentation: https://zed.dev/docs/configuring-zed#settings-files
+{
+  "lsp": {
+    "clangd": {
+      "binary": {
+        "path": "/usr/bin/gcc",
+        "arguments": [
+          "--background-index",
+          "--compile-commands-dir=build",
+          "--clang-tidy",
+          "--clang-tidy-checks=*",
+          "--header-insertion=never",
+          "--header-insertion-decorators=none"
+        ]
+      }
+    }
+  },
+  "format_on_save": "language_server"
+}

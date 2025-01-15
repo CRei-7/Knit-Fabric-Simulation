@@ -33,3 +33,7 @@
 
 # build
 /build
+
+/models/backpack/*
+
+.zed
