@@ -1,4 +1,5 @@
 #include "Application.h"
+#include <algorithm>
 #include <stdio.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -74,6 +75,100 @@ bool Application::Init()
 }
 
 void Application::SetupOpenGL() {
+    // std::vector<Vertex> vertices = {
+    //     // Table top vertices (y = 0.8 - 0.05 = 0.75)
+    //     {-0.5f,  0.75f,  0.3f},  // 0 front left
+    //     { 0.5f,  0.75f,  0.3f},  // 1 front right
+    //     { 0.5f,  0.75f, -0.3f},  // 2 back right
+    //     {-0.5f,  0.75f, -0.3f},  // 3 back left
+    //     {-0.5f,  0.65f,  0.3f},  // 4 front left bottom
+    //     { 0.5f,  0.65f,  0.3f},  // 5 front right bottom
+    //     { 0.5f,  0.65f, -0.3f},  // 6 back right bottom
+    //     {-0.5f,  0.65f, -0.3f},  // 7 back left bottom
+
+    //     // Front left leg (y -= 0.05)
+    //     {-0.45f, 0.65f,  0.25f}, // 8  top
+    //     {-0.35f, 0.65f,  0.25f}, // 9  top
+    //     {-0.35f, 0.65f,  0.15f}, // 10 top
+    //     {-0.45f, 0.65f,  0.15f}, // 11 top
+    //     {-0.45f, -0.05f,  0.25f}, // 12 bottom
+    //     {-0.35f, -0.05f,  0.25f}, // 13 bottom
+    //     {-0.35f, -0.05f,  0.15f}, // 14 bottom
+    //     {-0.45f, -0.05f,  0.15f}, // 15 bottom
+
+    //     // Front right leg (y -= 0.05)
+    //     { 0.35f, 0.65f,  0.25f}, // 16 top
+    //     { 0.45f, 0.65f,  0.25f}, // 17 top
+    //     { 0.45f, 0.65f,  0.15f}, // 18 top
+    //     { 0.35f, 0.65f,  0.15f}, // 19 top
+    //     { 0.35f, -0.05f,  0.25f}, // 20 bottom
+    //     { 0.45f, -0.05f,  0.25f}, // 21 bottom
+    //     { 0.45f, -0.05f,  0.15f}, // 22 bottom
+    //     { 0.35f, -0.05f,  0.15f}, // 23 bottom
+
+    //     // Back left leg (y -= 0.05)
+    //     {-0.45f, 0.65f, -0.15f}, // 24 top
+    //     {-0.35f, 0.65f, -0.15f}, // 25 top
+    //     {-0.35f, 0.65f, -0.25f}, // 26 top
+    //     {-0.45f, 0.65f, -0.25f}, // 27 top
+    //     {-0.45f, -0.05f, -0.15f}, // 28 bottom
+    //     {-0.35f, -0.05f, -0.15f}, // 29 bottom
+    //     {-0.35f, -0.05f, -0.25f}, // 30 bottom
+    //     {-0.45f, -0.05f, -0.25f}, // 31 bottom
+
+    //     // Back right leg (y -= 0.05)
+    //     { 0.35f, 0.65f, -0.15f}, // 32 top
+    //     { 0.45f, 0.65f, -0.15f}, // 33 top
+    //     { 0.45f, 0.65f, -0.25f}, // 34 top
+    //     { 0.35f, 0.65f, -0.25f}, // 35 top
+    //     { 0.35f, -0.05f, -0.15f}, // 36 bottom
+    //     { 0.45f, -0.05f, -0.15f}, // 37 bottom
+    //     { 0.45f, -0.05f, -0.25f}, // 38 bottom
+    //     { 0.35f, -0.05f, -0.25f}  // 39 bottom
+    // };
+
+
+    // // Indices for the tabletop (2 triangles)
+    //     std::vector<unsigned int> indices = {
+    //         // Table top - top face
+    //                0, 1, 2,    0, 2, 3,
+    //                // Table top - bottom face
+    //                4, 5, 6,    4, 6, 7,
+    //                // Table top - front face
+    //                0, 1, 5,    0, 5, 4,
+    //                // Table top - back face
+    //                2, 3, 7,    2, 7, 6,
+    //                // Table top - left face
+    //                0, 3, 7,    0, 7, 4,
+    //                // Table top - right face
+    //                1, 2, 6,    1, 6, 5,
+
+    //                // Front left leg
+    //                8, 9, 13,   8, 13, 12,    // front
+    //                9, 10, 14,  9, 14, 13,    // right
+    //                10, 11, 15, 10, 15, 14,   // back
+    //                11, 8, 12,  11, 12, 15,   // left
+
+    //                // Front right leg
+    //                16, 17, 21, 16, 21, 20,   // front
+    //                17, 18, 22, 17, 22, 21,   // right
+    //                18, 19, 23, 18, 23, 22,   // back
+    //                19, 16, 20, 19, 20, 23,   // left
+
+    //                // Back left leg
+    //                24, 25, 29, 24, 29, 28,   // front
+    //                25, 26, 30, 25, 30, 29,   // right
+    //                26, 27, 31, 26, 31, 30,   // back
+    //                27, 24, 28, 27, 28, 31,   // left
+
+    //                // Back right leg
+    //                32, 33, 37, 32, 37, 36,   // front
+    //                33, 34, 38, 33, 38, 37,   // right
+    //                34, 35, 39, 34, 39, 38,   // back
+    //                35, 32, 36, 35, 36, 39    // left
+    //     };
+
+    // table = new Mesh(vertices, indices);
 
     glEnable(GL_DEPTH_TEST);//for depth testing
     glEnable(GL_CULL_FACE);//for shading two sides of the mesh with different colors
@@ -216,7 +311,7 @@ void Application::setupCloth() {
     float disY = 0.05f; // Distance between particles in y direction
     float initialY = 0.3f; // Y-coordinate for the top pinned particle
     glm::vec3 Offset(-0.5f, 0.0f, 0.0f); // Offset for initial position
-    float k = 100.0f; // Structural Spring constant
+    float k = 50.0f; // Structural Spring constant
     float shearK = 10.5f; // Shear spring constant
 
     gravity = -0.05f;
@@ -390,6 +485,19 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 
     // Render front faces (side 1)
     glCullFace(GL_BACK);  // Cull the back faces, render front faces
+
+    bool currentCollision = NewCollision::isColliding;
+    // std::cout<<"currentCollision: "<<currentCollision<<std::endl;
+
+    // // Prepare a vector to hold the result
+    //     std::vector<GLuint> difference;
+
+    //     // Compute the difference
+    //     std::set_difference(
+    //         indices.begin(), indices.end(),
+    //         collidingIndices.begin(), collidingIndices.end(),
+    //         std::back_inserter(difference)
+    //     );
     GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
     glm::vec3 frontColor(1.0f, 0.0f, 0.0f);  // Color for the front face
     glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
@@ -397,7 +505,17 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 
     // Render back faces (side 2)
     glCullFace(GL_FRONT);  // Cull the front faces, render back faces
-    glm::vec3 backColor(1.0f, 0.0f, 0.0f);  // Color for the back face
+    if(!collidingIndices.empty()) {
+        glm::vec3 frontColor(1.0f, 0.0f, 0.0f);  // Color for the front face
+        glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
+        glDrawElements(GL_TRIANGLES, collidingIndices.size(), GL_UNSIGNED_INT, 0);
+    }
+
+    // glm::vec3 frontColor(1.0f, 0.0f, 0.0f);  // Color for the front face
+    // glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
+    // glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+
+    glm::vec3 backColor(1.0f, 1.0f, 0.0f);  // Color for the back face
     glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
@@ -406,22 +524,19 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 }
 
 
-
-
 // Main rendering loop
 void Application::MainLoop()
 {
     setupCloth();
-    //Object Cube;
-    //Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
+    Object Cube;
+    Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
 
-    Object Sphere;
-    Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
+    // Object Sphere;
+    // Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
 
     while (!glfwWindowShouldClose(window))
     {
         bool should_close = false;
-
         //for variable speed of movement
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
@@ -475,7 +590,7 @@ void Application::MainLoop()
             cameraUp
         );//(position of camera, target position, up vector that is a vector pointing in positive y-direction)
 
-        projection = glm::perspective(glm::radians(fov), (float)display_w / (float)display_h, 0.1f, 100.0f);
+        projection = glm::perspective(glm::radians(fov), (float)display_w / (float)display_h, 0.1f, 1000.0f);
 
         // Update to the wind direction periodically
         windTimer += deltaTime;
@@ -484,11 +599,12 @@ void Application::MainLoop()
             windTimer = 0.0f; //Timer reset
         }
 
+        NewCollision::resolveCollision(particles, indices, Cube, deltaTime, collidingIndices);
+
         for (auto& particle : particles) {
-            //resolveCollision(particle, Cube);
+            //resolveCollision(particle, Cube   );
             for (int i = 0; i < 20; ++i) {
-                //Collision::resolveCollision(particle, Cube, deltaTime);
-                Collision::resolveCollision(particle, Sphere, deltaTime);
+                // Collision::resolveCollision(particle, Sphere, deltaTime);
             }
 
             Collision::resolveSelfCollision(particle, particles); // Check self-collision
@@ -512,10 +628,11 @@ void Application::MainLoop()
             spring.render(shader->shaderProgram, model, view, projection);
         }
 
-        //Cube.render(shaderProgram, view, projection, lightPos, cameraPos);
-        Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
+        Cube.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
+        // Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
 
         renderClothMesh(shader->shaderProgram, particles, view, projection);
+        // table->Draw(shader->shaderProgram, glm::mat4(1.0f), view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);

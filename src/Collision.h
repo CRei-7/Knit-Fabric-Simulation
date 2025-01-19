@@ -26,6 +26,26 @@ public:
                 // Calculate the magnitude of the penetration depth
                 float penetrationDepth = glm::length(penetrationVector);
 
+                // for frictioanal force
+                //calcualte normal force
+                // glm::vec3 normal = glm::normalize(penetrationVector);
+                // glm::vec3 normalForce = normal * glm::length(velocity);
+
+                //tangential velocoty
+                // glm::vec3 tangentialVelocity = velocity - glm::dot(velocity, normal) * normal;
+
+                // Friction coefficients
+                // float mu_s = 0.5f; // Static friction coefficient
+                // float mu_d = 0.3f; // Dynamic friction coefficient
+
+                // glm::vec3 frictionalForce;
+                // if (glm::length(tangentialVelocity) < 0.01f) {
+                //     // Static friction: Opposes motion completely
+                //     frictionalForce = -tangentialVelocity * mu_s;
+                // } else {
+                //     // Dynamic friction: Opposes motion proportionally
+                //     frictionalForce = -glm::normalize(tangentialVelocity) * mu_d * glm::length(normalForce);
+                // }
                 // Apply a repulsion force based on penetration depth
                 if (penetrationDepth > 0.0f) {
                     float repulsionStrength = 500.0f; // Adjust strength as needed

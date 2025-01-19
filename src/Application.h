@@ -16,6 +16,8 @@
 #include "Object.h"
 #include "Collision.h"
 #include "Shader.h"
+#include "TableMesh.cpp"
+#include "NewCollision.h"
 
 class Application
 {
@@ -27,6 +29,7 @@ public:
     void Cleanup();
 
     Shader* shader;
+    // Mesh* table;
 
 private:
     GLFWwindow* window;
@@ -85,6 +88,7 @@ private:
     std::vector<glm::vec3> vertices;
     std::vector<GLuint> indices;
     std::vector<glm::vec3> normals;
+    std::vector<GLuint> collidingIndices;
 
     void setupClothMesh(const std::vector<Particle>& particles, int column, int row);
     void renderClothMesh(GLuint shaderProgram, const std::vector<Particle>& particles, const glm::mat4& view, const glm::mat4& projection);

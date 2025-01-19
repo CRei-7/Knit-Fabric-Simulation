@@ -8,6 +8,9 @@ find_package(glfw3 REQUIRED)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/lib/external/imgui)
 
+#Add Glad
+add_library(glad STATIC ${CMAKE_SOURCE_DIR}/src/glad.c)
+
 # ImGui sources
 set(IMGUI_SOURCES
     ${IMGUI_PATH}/imgui.cpp
@@ -34,7 +37,7 @@ set(IMGUI_HEADER
 )
 
 # Add source files
-file(GLOB_RECURSE SOURCE_FILES 
+file(GLOB_RECURSE SOURCE_FILES
 ${CMAKE_SOURCE_DIR}/src/*.c
 ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
@@ -44,12 +47,15 @@ ${IMGUI_PATH}/*.h
 ${IMGUI_PATH}/backends/*.h
 )
 
+target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/include/glad)
+
 # add executable
 add_executable(physics_simulation_software ${SOURCE_FILES} ${IMGUI_SOURCES} ${IMGUI_HEADERS})
 
 # add_library(imgui STATIC ${IMGUI_SOURCES})
 target_include_directories(physics_simulation_software PUBLIC ${IMGUI_PATH} ${IMGUI_PATH}/backends ${IMGUI_HEADER})
-target_link_libraries(physics_simulation_software 
+target_link_libraries(physics_simulation_software
+    glad
     glfw
     OpenGL::GL
 )
@@ -57,14 +63,14 @@ target_link_libraries(physics_simulation_software
 
 # # Link libraries
 # if(WIN32)
-#     target_link_libraries(${PROJECT_NAME} 
+#     target_link_libraries(${PROJECT_NAME}
 #         ${CMAKE_SOURCE_DIR}/lib/libglfw3dll.a
 #         opengl32
 #     )
 # else()
 #     find_package(OpenGL REQUIRED)
 #     find_library(GLFW_LIBRARY glfw)
-#     target_link_libraries(${PROJECT_NAME} 
+#     target_link_libraries(${PROJECT_NAME}
 #         ${OPENGL_LIBRARIES}
 #         ${GLFW_LIBRARY}
 #         dl

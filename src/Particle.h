@@ -14,6 +14,7 @@ private:
     bool isStatic;
     glm::vec3 color;// for particle color
     float radius;
+    bool isCollided = false;
 
     // OpenGL vertex buffer
     GLuint VAO = 0, VBO = 0;
