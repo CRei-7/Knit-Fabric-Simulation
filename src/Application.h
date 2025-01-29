@@ -16,8 +16,10 @@
 #include "Object.h"
 #include "Collision.h"
 #include "Shader.h"
-#include "TableMesh.cpp"
+#include "Model.h"
+// #include "TableMesh.cpp"
 #include "NewCollision.h"
+#include "BVH.h"
 
 class Application
 {
@@ -29,6 +31,9 @@ public:
     void Cleanup();
 
     Shader* shader;
+    Shader* importedModelShader;
+    BVH* clothBVH;
+    Model* ourModel;
     // Mesh* table;
 
 private:
@@ -37,7 +42,6 @@ private:
     const char* glsl_version;
     // GLuint vertexArray;
     GLuint vertexBuffer;
-
     GLuint VBO;//Vertex Buffer Object which stores a large number of vertices in the GPU's memory
     GLuint VAO;//Vertex Array Object whcih stores all the vertex attribute settings in a single object
     GLuint EBO;//Element Buffer Object for referencing values in VBO using indices

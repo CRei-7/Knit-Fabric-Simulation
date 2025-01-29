@@ -67,6 +67,18 @@ void ImGuiManager::Render()
     }
 }
 
+void ImGuiManager::RenderWireframeToggle()
+{
+    ImGui::PushFont(menu_font);
+    ImGui::Begin("Mode Change");
+    if (ImGui::Button(wireframeMode ? "Solid Mode" : "Wireframe Mode",ImVec2(150,30)))
+    {
+        wireframeMode = !wireframeMode;
+    }
+    ImGui::PopFont();
+    ImGui::End();
+}
+
 void ImGuiManager::Cleanup()
 {
     ImGui_ImplOpenGL3_Shutdown();

@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+
 // Error callback function
 static void glfw_error_callback(int error, const char* description)
 {
@@ -67,8 +68,16 @@ bool Application::Init()
     imgui_manager.Init(window, glsl_version);
     std::cout << "ImGui initialized" << std::endl;
 
-    shader = new Shader("../shaders/VertShader.vert", "../shaders/FragShader.frag");
+    // For model loading
+    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+    // stbi_set_flip_vertically_on_load(true);
 
+    //   glEnable(GL_DEPTH_TEST);
+    shader = new Shader("../shaders/VertShader.vert", "../shaders/FragShader.frag");
+    // importedModelShader = new Shader("../shaders/modelVertex.vert", "../shaders/modelFragment.frag");
+    // std::cout << "Loading models" << std::endl;
+       // // load models
+    // ourModel = new Model("../models/backpack/backpack.obj");
     SetupOpenGL();
 
     return true;
@@ -417,6 +426,8 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     for (auto& normal : normals) {
         normal = glm::normalize(normal);
     }
+    // generate BVH for the cloth
+    clothBVH = new BVH(particles, indices);
 
     // Generate VAO, VBO, and EBO for the mesh
     glGenVertexArrays(1, &VAO);
@@ -528,11 +539,11 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 void Application::MainLoop()
 {
     setupCloth();
-    Object Cube;
-    Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
+    // Object Cube;
+    // Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
 
-    // Object Sphere;
-    // Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
+    Object Sphere;
+    Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
 
     while (!glfwWindowShouldClose(window))
     {
@@ -558,7 +569,7 @@ void Application::MainLoop()
         imgui_manager.SetupMenuBar(window, &should_close);
         if (should_close)
             glfwSetWindowShouldClose(window, true);
-
+        // imgui_manager.RenderWireframeToggle();
         imgui_manager.Render();
         imgui_manager.EndFrame();
 
@@ -573,6 +584,9 @@ void Application::MainLoop()
 
         //activates the shader
         glUseProgram(shader->shaderProgram);
+
+        // use imported model shaders
+        // importedModelShader->use();
 
         glm::vec3 lightColor(1.0f, 1.0f, 1.0f);  // White light
         GLuint lightColorLoc = glGetUniformLocation(shader->shaderProgram, "lightColor");
@@ -592,6 +606,12 @@ void Application::MainLoop()
 
         projection = glm::perspective(glm::radians(fov), (float)display_w / (float)display_h, 0.1f, 1000.0f);
 
+        // importedModelShader->setMat4("projection", projection);
+        // importedModelShader->setMat4("view", view);
+        // importedModelShader->setMat4("model", model);
+
+        // ourModel->Draw(*importedModelShader, imgui_manager.wireframeMode);
+
         // Update to the wind direction periodically
         windTimer += deltaTime;
         if (windTimer >= windChangeInterval) {
@@ -599,7 +619,13 @@ void Application::MainLoop()
             windTimer = 0.0f; //Timer reset
         }
 
-        NewCollision::resolveCollision(particles, indices, Cube, deltaTime, collidingIndices);
+
+        clothBVH->refit();
+        std::cout << " Without BVH: " << NewCollision::collisionChecks << "\n";
+        std::cout << " - With BVH: " << NewCollision::bvhCollisionChecks << "\n";
+
+        // NewCollision::resolveCollision(particles, clothBVH, indices, Sphere, deltaTime, collidingIndices);
+        NewCollision::resolveCollisionWithOutBVH(particles, indices, Sphere, deltaTime, collidingIndices);
 
         for (auto& particle : particles) {
             //resolveCollision(particle, Cube   );
@@ -628,13 +654,14 @@ void Application::MainLoop()
             spring.render(shader->shaderProgram, model, view, projection);
         }
 
-        Cube.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
-        // Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
+        // Cube.render(shader->shaderProgram,   view, projection, lightPos, cameraPos);
+        Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
 
         renderClothMesh(shader->shaderProgram, particles, view, projection);
         // table->Draw(shader->shaderProgram, glm::mat4(1.0f), view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
     }
 }
@@ -691,6 +718,7 @@ void Application::scroll_callback(GLFWwindow* window, double xoffset, double yof
 void Application::Cleanup()
 {
     imgui_manager.Cleanup();
+    delete clothBVH;
     glfwDestroyWindow(window);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);

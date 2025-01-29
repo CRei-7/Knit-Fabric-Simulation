@@ -28,6 +28,35 @@ public:
         }
     }
 
+    bool intersectsAABB(const glm::vec3& aabbMin, const glm::vec3& aabbMax) const {
+        if (isCube()) {
+            // Cube (AABB) vs AABB intersection check
+            glm::vec3 cubeMin = getCenter() - glm::vec3(getHalfLength());
+            glm::vec3 cubeMax = getCenter() + glm::vec3(getHalfLength());
+
+            // Check overlap between two AABBs
+            return (cubeMin.x <= aabbMax.x && cubeMax.x >= aabbMin.x) &&
+                   (cubeMin.y <= aabbMax.y && cubeMax.y >= aabbMin.y) &&
+                   (cubeMin.z <= aabbMax.z && cubeMax.z >= aabbMin.z);
+        }
+        else if (isSphere()) {
+            // Sphere vs AABB intersection check
+            glm::vec3 sphereCenter = getCenter();
+            float sphereRadius = getHalfLength();
+
+            // Find the closest point on the AABB to the sphere center
+            glm::vec3 closestPoint;
+            closestPoint.x = glm::clamp(sphereCenter.x, aabbMin.x, aabbMax.x);
+            closestPoint.y = glm::clamp(sphereCenter.y, aabbMin.y, aabbMax.y);
+            closestPoint.z = glm::clamp(sphereCenter.z, aabbMin.z, aabbMax.z);
+
+            // Check if the closest point is within the sphere
+            float distanceSq = glm::distance(sphereCenter, closestPoint) * glm::distance(sphereCenter, closestPoint);
+            return distanceSq <= (sphereRadius * sphereRadius);
+        }
+        return false;
+    }
+
     void SetupCube(float length, const glm::vec3& cubeCenter) {
         objectType = ObjectType::Cube;
         center = cubeCenter;
