@@ -362,7 +362,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
 }*/
 
 void Application::generateFurStrands(const std::vector<Particle>& particles, int column, int row) {
-    float furDensity = 0.2f; // Distance between fur base points
+    float furDensity = 0.15f; // Distance between fur base points
     int furLayers = 10; // Number of layers for the fur
     float furLength = 0.025f; // Length of each fur strand
 
@@ -405,7 +405,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
                 // Generate fur strands along the normal
                 for (int layer = 0; layer < furLayers; ++layer) {
                     float t = static_cast<float>(layer) / furLayers;
-                    glm::vec3 furPos = basePoint + normal * furLength * t;
+                    glm::vec3 furPos = basePoint - normal * furLength * t;
 
                     // Add precomputed randomness to the fur direction
                     furPos += randomOffsets[(i / 3) * furLayers + layer];
@@ -636,7 +636,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     // Generate fur vertices and indices
     furVertices.clear();
     furIndices.clear();
-    float furDensity = 0.2f; // Distance between fur base points
+    float furDensity = 0.15f; // Distance between fur base points
     int furLayers = 10; // Number of layers for the fur
     float furLength = 0.025f; // Length of each fur strand
 
@@ -661,7 +661,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
                 // Generate fur strands along the normal
                 for (int layer = 0; layer < furLayers; ++layer) {
                     float t = static_cast<float>(layer) / furLayers;
-                    glm::vec3 furPos = basePoint + normal * furLength * t;
+                    glm::vec3 furPos = basePoint - normal * furLength * t;
 
                     // Add precomputed randomness to the fur direction
                     furPos += randomOffsets[(i / 3) * furLayers + layer];
@@ -696,8 +696,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     // Bind VAO for cloth mesh
     glBindVertexArray(VAO);
 
-    // Render front faces (side 1)
-    glCullFace(GL_FRONT);  // Cull the back faces, render front faces
+    glCullFace(GL_BACK);  // Cull the back faces, render front faces
 
     bool currentCollision = NewCollision::isColliding;
     // std::cout<<"currentCollision: "<<currentCollision<<std::endl;
@@ -717,14 +716,13 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
-    // Render back faces (side 2)
-    glCullFace(GL_BACK);  // Cull the front faces, render back faces
+    glm::vec3 backColor(1.0f, 1.0f, 0.0f);  // Color for the back face
+    glCullFace(GL_FRONT);  // Cull the front faces, render back faces
     if (!collidingIndices.empty()) {
-        glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
+        glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
         glDrawElements(GL_TRIANGLES, collidingIndices.size(), GL_UNSIGNED_INT, 0);
     }
 
-    glm::vec3 backColor(1.0f, 1.0f, 0.0f);  // Color for the back face
     glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
