@@ -50,6 +50,7 @@ private:
     GLuint normalVBO;
     GLuint texCoordVBO;
     GLuint texture;
+    GLuint furTexCoordVBO;
 
     GLuint furVAO;
     GLuint furVBO;
@@ -109,7 +110,7 @@ private:
 
     void generateFurStrands(const std::vector<Particle>& particles, int column, int row);
     //void generateFurStrands(const std::vector<Particle>& particles, const std::vector<GLuint>& indices, int furLayers, int furDensity);
-
+    std::vector<glm::vec2> furTexCoords;
 
     glm::vec3 lightPos;  //light position
     std::vector<glm::vec2> texCoords;

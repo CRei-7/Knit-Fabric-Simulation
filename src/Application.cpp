@@ -323,6 +323,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
 
     furVertices.clear();
     furIndices.clear();
+    furTexCoords.clear();
 
     // Precompute random offsets for fur strands
     std::vector<glm::vec3> randomOffsets;
@@ -338,6 +339,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
     int maxFurIndices = maxFurVertices * 2;
     furVertices.reserve(maxFurVertices);
     furIndices.reserve(maxFurIndices);
+    furTexCoords.reserve(maxFurVertices);
 
     // Iterate over each face (triangle) in the cloth mesh
     for (int i = 0; i < indices.size(); i += 3) {
@@ -346,6 +348,10 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
         glm::vec3 v1 = vertices[indices[i + 1]];
         glm::vec3 v2 = vertices[indices[i + 2]];
 
+        glm::vec2 t0 = texCoords[indices[i]];
+        glm::vec2 t1 = texCoords[indices[i+1]];
+        glm::vec2 t2 = texCoords[indices[i+2]];
+
         // Calculate the normal of the triangle
         glm::vec3 edge1 = v1 - v0;
         glm::vec3 edge2 = v2 - v0;
@@ -353,9 +359,15 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
 
         // Generate interpolated points across the triangle
         for (float u = 0.0f; u <= 1.0f; u += furDensity) {
-            for (float v = 0.0f; v <= 1.0f - u; v += furDensity) {
+            for (float v = 0.0f; v <= ( 1.0f - u ); v += furDensity) {
+                // Barycentric coordinates
+                const float w = 1.0f - u - v;
+                
                 // Barycentric interpolation to get the base point
-                glm::vec3 basePoint = v0 + u * edge1 + v * edge2;
+                glm::vec3 basePoint = v0 * w + v1 * u + v2 * v;
+
+                // Texture coordinate interpolation
+                glm::vec2 baseTexCoord = t0 * w + t1 * u + t2 * v;
 
                 // Generate fur strands along the normal
                 for (int layer = 0; layer < furLayers; ++layer) {
@@ -363,9 +375,10 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
                     glm::vec3 furPos = basePoint - normal * furLength * t;
 
                     // Add precomputed randomness to the fur direction
-                    furPos += randomOffsets[(i / 3) * furLayers + layer];
+                    furPos += randomOffsets[(i / 3) * furLayers + layer] * t;
 
                     furVertices.push_back(furPos);
+                    furTexCoords.push_back(baseTexCoord);
 
                     // Connect fur strands to the base point
                     if (layer > 0) {
@@ -452,8 +465,10 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     vertices.clear();
     indices.clear();
     normals.clear();
+    texCoords.clear();
     furVertices.clear();
     furIndices.clear();
+    furTexCoords.clear();
 
     // Store particle positions as vertices
     vertices.reserve(particles.size());
@@ -529,6 +544,7 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     // Generate VAO, VBO, and EBO for fur
     glGenVertexArrays(1, &furVAO);
     glGenBuffers(1, &furVBO);
+    glGenBuffers(1, &furTexCoordVBO);
     glGenBuffers(1, &furEBO);
 
     glBindVertexArray(furVAO);
@@ -540,6 +556,14 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     // Set vertex attributes for position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // Binds VBO for Texture Coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
+    glBufferData(GL_ARRAY_BUFFER, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data(), GL_DYNAMIC_DRAW);
+    
+    // Sets vertex attributes for Texture Coordinates
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+    glEnableVertexAttribArray(2);
 
     // Bind EBO for fur indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
@@ -630,6 +654,8 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     // Generate fur vertices and indices
     furVertices.clear();
     furIndices.clear();
+    furTexCoords.clear();
+
     float furDensity = 0.15f; // Distance between fur base points
     int furLayers = 10; // Number of layers for the fur
     float furLength = 0.025f; // Length of each fur strand
@@ -641,6 +667,10 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
         glm::vec3 v1 = vertices[indices[i + 1]];
         glm::vec3 v2 = vertices[indices[i + 2]];
 
+        glm::vec2 t0 = texCoords[indices[i]];
+        glm::vec2 t1 = texCoords[indices[i + 1]];
+        glm::vec2 t2 = texCoords[indices[i + 2]];
+
         // Calculate the normal of the triangle
         glm::vec3 edge1 = v1 - v0;
         glm::vec3 edge2 = v2 - v0;
@@ -648,9 +678,18 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 
         // Generate interpolated points across the triangle
         for (float u = 0.0f; u <= 1.0f; u += furDensity) {
-            for (float v = 0.0f; v <= 1.0f - u; v += furDensity) {
+            for (float v = 0.0f; v <= (1.0f - u); v += furDensity) {
+                // Barycentric coordinates
+                const float w = 1.0f - u - v;
+
                 // Barycentric interpolation to get the base point
-                glm::vec3 basePoint = v0 + u * edge1 + v * edge2;
+                glm::vec3 basePoint = v0 * w + v1 * u + v2 * v;
+
+                // Texture coordinate interpolation
+                glm::vec2 baseTexCoord = t0 * w + t1 * u + t2 * v;
+
+                // Generate fur strands along the normal
+                int baseIndex = furVertices.size();
 
                 // Generate fur strands along the normal
                 for (int layer = 0; layer < furLayers; ++layer) {
@@ -658,11 +697,12 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
                     glm::vec3 furPos = basePoint - normal * furLength * t;
 
                     // Add precomputed randomness to the fur direction
-                    furPos += randomOffsets[(i / 3) * furLayers + layer];
-
+                    furPos += randomOffsets[(i / 3) * furLayers + layer] * t;
+                    
                     #pragma omp critical
                     {
                         furVertices.push_back(furPos);
+                        furTexCoords.push_back(baseTexCoord);
 
                         // Connect fur strands to the base point
                         if (layer > 0) {
@@ -678,6 +718,9 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     // Update fur vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, furVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, furVertices.size() * sizeof(glm::vec3), &furVertices[0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data());
 
     // Set light properties (light position, view position, and color)
     GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
@@ -744,13 +787,32 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     // Render fur with a different color
     if (!furVertices.empty() && !furIndices.empty()) {
         glBindVertexArray(furVAO);
-        glm::vec3 furColor(1.0f, 0.0f, 1.0f);  // Red fur
+        //glm::vec3 furColor(1.0f, 0.0f, 1.0f);  // Red fur
 
         // Set fur to not use texture
-        glUniform1i(useTextureLoc, 0);
-        glUniform3fv(colorLoc, 1, glm::value_ptr(furColor));
+        //glUniform1i(useTextureLoc, 0);
+        //glUniform3fv(colorLoc, 1, glm::value_ptr(furColor));
+
+        //glDrawElements(GL_LINES, furIndices.size(), GL_UNSIGNED_INT, 0);
+
+        // Uses same texture as cloth
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(textureLoc, 0);
+
+        // Enable texture sampling for fur
+        glUniform1i(useTextureLoc, 1); // 1 = use texture
+
+        // Set uniform for color (white to allow full texture color)
+        glUniform3fv(colorLoc, 1, glm::value_ptr(glm::vec3(1.0f)));
+
+        // Disable back face culling for fur (render both sides)
+        glDisable(GL_CULL_FACE);
 
         glDrawElements(GL_LINES, furIndices.size(), GL_UNSIGNED_INT, 0);
+
+        // Re-enable face culling
+        glEnable(GL_CULL_FACE);
     }
 
     glBindVertexArray(0);
