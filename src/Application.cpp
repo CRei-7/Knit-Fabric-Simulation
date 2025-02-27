@@ -68,16 +68,20 @@ bool Application::Init()
     imgui_manager.Init(window, glsl_version);
     std::cout << "ImGui initialized" << std::endl;
 
+    std::cout << "GPU: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+
     // For model loading
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     // stbi_set_flip_vertically_on_load(true);
 
-    //   glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
     shader = new Shader("VertShader.vert", "FragShader.frag");
     // importedModelShader = new Shader("../shaders/modelVertex.vert", "../shaders/modelFragment.frag");
     // std::cout << "Loading models" << std::endl;
        // // load models
     // ourModel = new Model("../models/backpack/backpack.obj");
+
     SetupOpenGL();
 
     return true;
@@ -187,7 +191,7 @@ void Application::SetupOpenGL() {
     cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    lightPos = glm::vec3(0.0f, 1.0f, 0.0f);
+    lightPos = glm::vec3(0.0f, 1.0f, 1.0f);
 
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -311,55 +315,6 @@ glm::vec3 getRandomWindDirection() {
     // Returns the random normalized vector
     return glm::vec3(x, y, z);
 }
-/*
-void Application::generateFurStrands(const std::vector<Particle>& particles, int column, int row) {
-    float furDensity = 0.2f; // Distance between fur base points
-    int furLayers = 10; // Number of layers for the fur
-    float furLength = 0.025f; // Length of each fur strand
-
-    furVertices.clear();
-    furIndices.clear();
-
-    // Iterate over each face (triangle) in the cloth mesh
-    for (int i = 0; i < indices.size(); i += 3) {
-        // Get the three vertices of the triangle
-        glm::vec3 v0 = vertices[indices[i]];
-        glm::vec3 v1 = vertices[indices[i + 1]];
-        glm::vec3 v2 = vertices[indices[i + 2]];
-
-        // Calculate the normal of the triangle
-        glm::vec3 edge1 = v1 - v0;
-        glm::vec3 edge2 = v2 - v0;
-        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
-
-        // Generate interpolated points across the triangle
-        for (float u = 0.0f; u <= 1.0f; u += furDensity) {
-            for (float v = 0.0f; v <= 1.0f - u; v += furDensity) {
-                // Barycentric interpolation to get the base point
-                glm::vec3 basePoint = v0 + u * edge1 + v * edge2;
-
-                // Generate fur strands along the normal
-                for (int layer = 0; layer < furLayers; ++layer) {
-                    float t = static_cast<float>(layer) / furLayers;
-                    glm::vec3 furPos = basePoint + normal * furLength * t;
-
-                    // Add some randomness to the fur direction
-                    //float randomOffsetX = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
-                    //float randomOffsetY = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
-                    //furPos += glm::vec3(randomOffsetX, randomOffsetY, 0.0f);
-
-                    furVertices.push_back(furPos);
-
-                    // Connect fur strands to the base point
-                    if (layer > 0) {
-                        furIndices.push_back(furVertices.size() - 2);
-                        furIndices.push_back(furVertices.size() - 1);
-                    }
-                }
-            }
-        }
-    }
-}*/
 
 void Application::generateFurStrands(const std::vector<Particle>& particles, int column, int row) {
     float furDensity = 0.15f; // Distance between fur base points
@@ -502,8 +457,17 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
 
     // Store particle positions as vertices
     vertices.reserve(particles.size());
-    for (const auto& particle : particles) {
-        vertices.push_back(particle.getPosition());
+    texCoords.reserve(particles.size()); // Reserve space for texture coordinates
+    for (int i = 0; i < column; ++i) {
+        for (int j = 0; j < row; ++j) {
+            int idx = i * row + j;
+            vertices.push_back(particles[idx].getPosition());
+
+            // Calculate texture coordinates based on grid position
+            float u = static_cast<float>(i) / (column - 1);
+            float v = static_cast<float>(j) / (row - 1);
+            texCoords.push_back(glm::vec2(u, v));
+        }
     }
 
     // Generate the indices for triangles between neighboring particles
@@ -522,28 +486,7 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
         }
     }
 
-    // Calculate normals
-    normals.resize(vertices.size(), glm::vec3(0.0f));
-#pragma omp parallel for
-    for (int i = 0; i < indices.size(); i += 3) {
-        glm::vec3 v0 = vertices[indices[i]];
-        glm::vec3 v1 = vertices[indices[i + 1]];
-        glm::vec3 v2 = vertices[indices[i + 2]];
-
-        glm::vec3 edge1 = v1 - v0;
-        glm::vec3 edge2 = v2 - v0;
-        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
-
-        normals[indices[i]] += normal;
-        normals[indices[i + 1]] += normal;
-        normals[indices[i + 2]] += normal;
-    }
-
-    // Normalize normals
-#pragma omp parallel for
-    for (auto& normal : normals) {
-        normal = glm::normalize(normal);
-    }
+    calculateNormals();
 
     // Generate BVH for the cloth
     clothBVH = new BVH(particles, indices);
@@ -555,6 +498,7 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &normalVBO);
+    glGenBuffers(1, &texCoordVBO);
     glGenBuffers(1, &EBO);
 
     glBindVertexArray(VAO);
@@ -572,6 +516,11 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_DYNAMIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, texCoordVBO);
+    glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(glm::vec2), &texCoords[0], GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+    glEnableVertexAttribArray(2);
 
     // Bind EBO for indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -596,7 +545,50 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, furIndices.size() * sizeof(GLuint), &furIndices[0], GL_STATIC_DRAW);
 
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("real_madrid.jpg", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
+
     glBindVertexArray(0);
+}
+
+void Application::calculateNormals() {
+    normals.resize(vertices.size(), glm::vec3(0.0f));
+#pragma omp parallel for
+    for (int i = 0; i < indices.size(); i += 3) {
+        glm::vec3 v0 = vertices[indices[i]];
+        glm::vec3 v1 = vertices[indices[i + 1]];
+        glm::vec3 v2 = vertices[indices[i + 2]];
+
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+
+        normals[indices[i]] += normal;
+        normals[indices[i + 1]] += normal;
+        normals[indices[i + 2]] += normal;
+    }
+
+    // Normalize normals
+#pragma omp parallel for
+    for (auto& normal : normals) {
+        normal = glm::normalize(normal);
+    }
 }
 
 void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Particle>& particles, const glm::mat4& view, const glm::mat4& projection) {
@@ -617,6 +609,8 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
         vertices[i] = particles[i].getPosition();  // Update vertex positions
     }
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(glm::vec3), &vertices[0]);
+
+    calculateNormals();
 
     // Update normals buffer if needed (if particles have moved significantly)
     glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
@@ -693,10 +687,24 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     GLuint viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
     glUniform3fv(viewPosLoc, 1, glm::value_ptr(viewPos));
 
+    // Activate and Bind Texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    GLuint textureLoc = glGetUniformLocation(shaderProgram, "clothTexture");
+    glUniform1i(textureLoc, 0); //Sets texture unit 0
+
     // Bind VAO for cloth mesh
     glBindVertexArray(VAO);
 
-    glCullFace(GL_BACK);  // Cull the back faces, render front faces
+    // Set useTexture uniform to tell shader to use texture
+    GLuint useTextureLoc = glGetUniformLocation(shaderProgram, "useTexture");
+    glUniform1i(useTextureLoc, 1); // 1 = use texture
+
+    // This is to invert the normal if the associated face is the back face.
+    GLuint isBackFaceLoc = glGetUniformLocation(shaderProgram, "isBackFace");
+    glUniform1i(isBackFaceLoc, 1); // 1 = backface
+
+    glCullFace(GL_FRONT);  // Cull the back faces, render front faces
 
     bool currentCollision = NewCollision::isColliding;
     // std::cout<<"currentCollision: "<<currentCollision<<std::endl;
@@ -712,12 +720,19 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     //     );
 
     GLint colorLoc = glGetUniformLocation(shaderProgram, "Color");
-    glm::vec3 frontColor(1.0f, 0.0f, 0.0f);  // Color for the front face
+    glm::vec3 frontColor(1.0f, 1.0f, 1.0f);  // Color for the front face
     glUniform3fv(colorLoc, 1, glm::value_ptr(frontColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
-    glm::vec3 backColor(1.0f, 1.0f, 0.0f);  // Color for the back face
-    glCullFace(GL_FRONT);  // Cull the front faces, render back faces
+    glm::vec3 backColor(1.0f, 1.0f, 1.0f);  // Color for the back face
+    
+    
+    glUniform1i(isBackFaceLoc, 0);
+    glCullFace(GL_BACK);  // Cull the front faces, render back faces
+
+    // Turn off texturing for back face if desired
+    glUniform1i(useTextureLoc, 1); // 0 = don't use texture
+
     if (!collidingIndices.empty()) {
         glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
         glDrawElements(GL_TRIANGLES, collidingIndices.size(), GL_UNSIGNED_INT, 0);
@@ -726,11 +741,17 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
-    // Render fur
-    glBindVertexArray(furVAO);
-    glm::vec3 furColor(1.0f, 0.0f, 0.0f);  // Color for the fur
-    glUniform3fv(colorLoc, 1, glm::value_ptr(furColor));
-    glDrawElements(GL_LINES, furIndices.size(), GL_UNSIGNED_INT, 0);
+    // Render fur with a different color
+    if (!furVertices.empty() && !furIndices.empty()) {
+        glBindVertexArray(furVAO);
+        glm::vec3 furColor(1.0f, 0.0f, 1.0f);  // Red fur
+
+        // Set fur to not use texture
+        glUniform1i(useTextureLoc, 0);
+        glUniform3fv(colorLoc, 1, glm::value_ptr(furColor));
+
+        glDrawElements(GL_LINES, furIndices.size(), GL_UNSIGNED_INT, 0);
+    }
 
     glBindVertexArray(0);
     glUseProgram(0);
@@ -846,17 +867,19 @@ void Application::MainLoop()
             particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
             particle.update(deltaTime);
 
-            particle.render(shader->shaderProgram, view, projection);
+            //particle.render(shader->shaderProgram, view, projection);
         }
 
         // Update and render springs
         for (auto& spring : springs) {
             spring.update();
-            spring.render(shader->shaderProgram, model, view, projection);
+            //spring.render(shader->shaderProgram, model, view, projection);
         }
 
+        glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f);
+
         // Cube.render(shader->shaderProgram,   view, projection, lightPos, cameraPos);
-        Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos);
+        Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);
 
         renderClothMesh(shader->shaderProgram, particles, view, projection);
         // table->Draw(shader->shaderProgram, glm::mat4(1.0f), view, projection);
@@ -923,9 +946,11 @@ void Application::Cleanup()
     glfwDestroyWindow(window);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &normalVBO);
+    glDeleteBuffers(1, &texCoordVBO);
     glDeleteBuffers(1, &EBO);
     glDeleteVertexArrays(1, &furVAO);
     glDeleteBuffers(1, &furVBO);
     glDeleteBuffers(1, &furEBO);
+    glDeleteTextures(1, &texture);
     glfwTerminate();
 }

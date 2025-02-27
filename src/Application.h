@@ -21,6 +21,8 @@
 #include "NewCollision.h"
 #include "BVH.h"
 
+#include "stb_image.h"
+
 class Application
 {
 public:
@@ -46,6 +48,8 @@ private:
     GLuint VAO;//Vertex Array Object whcih stores all the vertex attribute settings in a single object
     GLuint EBO;//Element Buffer Object for referencing values in VBO using indices
     GLuint normalVBO;
+    GLuint texCoordVBO;
+    GLuint texture;
 
     GLuint furVAO;
     GLuint furVBO;
@@ -108,6 +112,8 @@ private:
 
 
     glm::vec3 lightPos;  //light position
+    std::vector<glm::vec2> texCoords;
+    void calculateNormals();
 };
 
 #endif // APPLICATION_H
