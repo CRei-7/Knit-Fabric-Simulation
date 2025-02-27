@@ -324,6 +324,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
     furVertices.clear();
     furIndices.clear();
     furTexCoords.clear();
+    furLengths.clear();
 
     // Precompute random offsets for fur strands
     std::vector<glm::vec3> randomOffsets;
@@ -340,6 +341,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
     furVertices.reserve(maxFurVertices);
     furIndices.reserve(maxFurIndices);
     furTexCoords.reserve(maxFurVertices);
+    furLengths.reserve(maxFurVertices);
 
     // Iterate over each face (triangle) in the cloth mesh
     for (int i = 0; i < indices.size(); i += 3) {
@@ -379,6 +381,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
 
                     furVertices.push_back(furPos);
                     furTexCoords.push_back(baseTexCoord);
+                    furLengths.push_back(t); // Stores normalized fur length
 
                     // Connect fur strands to the base point
                     if (layer > 0) {
@@ -469,6 +472,7 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     furVertices.clear();
     furIndices.clear();
     furTexCoords.clear();
+    furLengths.clear();
 
     // Store particle positions as vertices
     vertices.reserve(particles.size());
@@ -545,6 +549,7 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glGenVertexArrays(1, &furVAO);
     glGenBuffers(1, &furVBO);
     glGenBuffers(1, &furTexCoordVBO);
+    glGenBuffers(1, &furLengthVBO);
     glGenBuffers(1, &furEBO);
 
     glBindVertexArray(furVAO);
@@ -557,6 +562,17 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
+    // Calculate normals for fur (the same normals as the base mesh)
+    std::vector<glm::vec3> furNormals;
+    furNormals.resize(furVertices.size(), glm::vec3(0.0f, 1.0f, 0.0f)); // Default normal
+
+    // Bind VBO for fur normals (using cloth normals)
+    glGenBuffers(1, &furNormalVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, furNormalVBO);
+    glBufferData(GL_ARRAY_BUFFER, furNormals.size() * sizeof(glm::vec3), &furNormals[0], GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(1);
+
     // Binds VBO for Texture Coordinates
     glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
     glBufferData(GL_ARRAY_BUFFER, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data(), GL_DYNAMIC_DRAW);
@@ -564,6 +580,14 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     // Sets vertex attributes for Texture Coordinates
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
     glEnableVertexAttribArray(2);
+
+    // Bind VBO for fur length attribute
+    glBindBuffer(GL_ARRAY_BUFFER, furLengthVBO);
+    glBufferData(GL_ARRAY_BUFFER, furLengths.size() * sizeof(float), furLengths.data(), GL_DYNAMIC_DRAW);
+
+    // Set vertex attribute for fur length
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+    glEnableVertexAttribArray(3);
 
     // Bind EBO for fur indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
@@ -655,6 +679,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     furVertices.clear();
     furIndices.clear();
     furTexCoords.clear();
+    furLengths.clear();
 
     float furDensity = 0.15f; // Distance between fur base points
     int furLayers = 10; // Number of layers for the fur
@@ -703,6 +728,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
                     {
                         furVertices.push_back(furPos);
                         furTexCoords.push_back(baseTexCoord);
+                        furLengths.push_back(t);
 
                         // Connect fur strands to the base point
                         if (layer > 0) {
@@ -715,12 +741,39 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
         }
     }
 
+    // Calculate fur normals (same as cloth triangle normals)
+    std::vector<glm::vec3> furNormals;
+    furNormals.resize(furVertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
+
+    for (size_t i = 0; i < furIndices.size(); i += 2) {
+        if (i + 1 < furIndices.size()) {
+            glm::vec3 v0 = furVertices[furIndices[i]];
+            glm::vec3 v1 = furVertices[furIndices[i + 1]];
+            glm::vec3 dir = glm::normalize(v1 - v0);
+            // Perpendicular to the strand direction (approximate normal)
+            glm::vec3 normal = glm::normalize(glm::vec3(-dir.y, dir.x, dir.z));
+
+            furNormals[furIndices[i]] = normal;
+            furNormals[furIndices[i + 1]] = normal;
+        }
+    }
+
     // Update fur vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, furVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, furVertices.size() * sizeof(glm::vec3), &furVertices[0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data());
+
+    glBindBuffer(GL_ARRAY_BUFFER, furNormalVBO);
+    glBufferData(GL_ARRAY_BUFFER, furNormals.size() * sizeof(glm::vec3), furNormals.data(), GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, furLengthVBO);
+    glBufferData(GL_ARRAY_BUFFER, furLengths.size() * sizeof(float), furLengths.data(), GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, furIndices.size() * sizeof(GLuint), &furIndices[0], GL_DYNAMIC_DRAW);
+
 
     // Set light properties (light position, view position, and color)
     GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
@@ -735,6 +788,17 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glBindTexture(GL_TEXTURE_2D, texture);
     GLuint textureLoc = glGetUniformLocation(shaderProgram, "clothTexture");
     glUniform1i(textureLoc, 0); //Sets texture unit 0
+
+    // Shadow parameters
+    GLuint furShadowStrengthLoc = glGetUniformLocation(shaderProgram, "furShadowStrength");
+    glUniform1f(furShadowStrengthLoc, 0.6f); // Adjust for stronger/weaker shadows
+
+    GLuint furAlphaLoc = glGetUniformLocation(shaderProgram, "furAlpha");
+    glUniform1f(furAlphaLoc, 0.8f); // Controls transparency gradient of fur
+
+    // Set isFur uniform to 0 for cloth
+    GLuint isFurLoc = glGetUniformLocation(shaderProgram, "isFur");
+    glUniform1i(isFurLoc, 0);
 
     // Bind VAO for cloth mesh
     glBindVertexArray(VAO);
@@ -769,7 +833,6 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 
     glm::vec3 backColor(1.0f, 1.0f, 1.0f);  // Color for the back face
     
-    
     glUniform1i(isBackFaceLoc, 0);
     glCullFace(GL_BACK);  // Cull the front faces, render back faces
 
@@ -795,6 +858,13 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 
         //glDrawElements(GL_LINES, furIndices.size(), GL_UNSIGNED_INT, 0);
 
+        // Enable alpha blending for fur transparency
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // Set isFur uniform to 1 for fur rendering
+        glUniform1i(isFurLoc, 1);
+
         // Uses same texture as cloth
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
@@ -803,8 +873,13 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
         // Enable texture sampling for fur
         glUniform1i(useTextureLoc, 1); // 1 = use texture
 
+        // Set color for fur (tinted slightly)
+        glm::vec3 furColor(0.95f, 0.95f, 0.95f); // Slightly off-white
+        glUniform3fv(colorLoc, 1, glm::value_ptr(furColor));
+
+
         // Set uniform for color (white to allow full texture color)
-        glUniform3fv(colorLoc, 1, glm::value_ptr(glm::vec3(1.0f)));
+        //glUniform3fv(colorLoc, 1, glm::value_ptr(glm::vec3(1.0f)));
 
         // Disable back face culling for fur (render both sides)
         glDisable(GL_CULL_FACE);
@@ -813,6 +888,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 
         // Re-enable face culling
         glEnable(GL_CULL_FACE);
+        glDisable(GL_BLEND);
     }
 
     glBindVertexArray(0);
