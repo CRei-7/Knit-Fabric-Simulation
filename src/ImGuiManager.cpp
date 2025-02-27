@@ -71,7 +71,7 @@ void ImGuiManager::RenderWireframeToggle()
 {
     ImGui::PushFont(menu_font);
     ImGui::Begin("Mode Change");
-    if (ImGui::Button(wireframeMode ? "Solid Mode" : "Wireframe Mode",ImVec2(150,30)))
+    if (ImGui::Button(wireframeMode ? "Solid Mode" : "Wireframe Mode", ImVec2(150, 30)))
     {
         wireframeMode = !wireframeMode;
     }

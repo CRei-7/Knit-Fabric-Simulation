@@ -82,7 +82,8 @@ public:
                     particle.setPreviousPosition(position - dampenedVelocity); // Update position based on dampened velocity
                 }
             }
-        } else if (object.isSphere()) {
+        }
+        else if (object.isSphere()) {
             // Sphere collision logic
             glm::vec3 center = object.getCenter();
             float radius = object.getHalfLength(); // For spheres, halfLength represents the radius
