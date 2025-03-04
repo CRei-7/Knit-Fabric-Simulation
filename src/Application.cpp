@@ -12,7 +12,7 @@ static void glfw_error_callback(int error, const char* description)
 }
 
 // Constructor
-Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false), tKeyPressed(false), oKeyPressed(false) {}
+Application::Application() : window(nullptr), glsl_version("#version 330"), cKeyPressed(false), tKeyPressed(false), oKeyPressed(false), fKeyPressed(false) {}
 
 // Destructor
 Application::~Application() {}
@@ -32,7 +32,7 @@ bool Application::Init()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create window
-    window = glfwCreateWindow(1280, 720, "Dear ImGui", nullptr, nullptr);
+    window = glfwCreateWindow(1280, 720, "Fabric Simulation", nullptr, nullptr);
     if (window == nullptr)
     {
         std::cerr << "Failed to create GLFW window" << std::endl;
@@ -56,6 +56,16 @@ bool Application::Init()
     toggle_wind = false;
     toggleClothOrientation = true;
     clothNeedsReset = false;
+    ShowFur = true;
+    StartSimulation = false;
+    ShowParticle = false;
+    ShowSpring = false;
+
+    k = 100.0f; // Structural Spring constant
+    shearK = 10.5f; // Shear spring constant
+
+    lightPos = glm::vec3(0.0f, 1.0f, 1.0f);
+    lightColor = { 1.0f, 1.0f, 1.0f };  // White light
 
     glfwSwapInterval(1); // Enable vsync
 
@@ -67,6 +77,19 @@ bool Application::Init()
     // Initialize ImGui
     imgui_manager.Init(window, glsl_version);
     std::cout << "ImGui initialized" << std::endl;
+    // Assuming imguiManager is your ImGuiManager instance
+    imgui_manager.SetToggleWind(&toggle_wind);
+    imgui_manager.SetToggleCloth(&toggleClothOrientation, &clothNeedsReset);
+    imgui_manager.SetGravity(&gravity);
+    imgui_manager.SetFur(&ShowFur);
+    imgui_manager.SetLightColor(&lightColor);
+    imgui_manager.SetSimulation(&StartSimulation);
+    imgui_manager.ParticleShow(&ShowParticle);
+    imgui_manager.SpringShow(&ShowSpring);
+    imgui_manager.SetLightPosition(&lightPos);
+
+    imgui_manager.SetK(&k);
+    imgui_manager.SetShearK(&shearK);
 
     std::cout << "GPU: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
@@ -191,8 +214,6 @@ void Application::SetupOpenGL() {
     cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    lightPos = glm::vec3(0.0f, 1.0f, 1.0f);
-
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
     firstMouse = true;
@@ -202,7 +223,7 @@ void Application::SetupOpenGL() {
     lastY = display_h / 2.0;
     fov = 45.0f;
 
-    deltaTime = 0.0f;
+    deltaTime = 0.01f;
     lastFrame = 0.0f;
 }
 
@@ -287,6 +308,20 @@ void Application::processInput(GLFWwindow* window) {
     // Resets the flag when the key is released
     if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
         oKeyPressed = false;
+    }
+
+    // Toggles Fur with key 'F'
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+        if (!fKeyPressed) {
+            ShowFur = !ShowFur;
+            fKeyPressed = true;
+
+        }
+    }
+
+    // Resets the flag when the key is released
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+        fKeyPressed = false;
     }
 }
 
@@ -402,8 +437,6 @@ void Application::setupCloth() {
     float disY = 0.05f; // Distance between particles in y direction
     float initialY = 0.3f; // Y-coordinate for the top pinned particle
     glm::vec3 Offset(-0.5f, 0.0f, 0.0f); // Offset for initial position
-    float k = 50.0f; // Structural Spring constant
-    float shearK = 10.5f; // Shear spring constant
 
     gravity = -0.05f;
 
@@ -434,7 +467,7 @@ void Application::setupCloth() {
                 float xPos = i * disX + Offset.x;
                 float zPos = j * disY; // Use disY for Z direction when orientation is different
                 bool staticParticle = false; // j == 0; //First row static in this orientation
-                particles.emplace_back(glm::vec3(xPos, 0.22f, zPos), staticParticle);
+                particles.emplace_back(glm::vec3(xPos, 0.15f, zPos), staticParticle);
             }
         }
     }
@@ -510,8 +543,10 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     // Generate BVH for the cloth
     clothBVH = new BVH(particles, indices);
 
-    // Setup for fur
-    generateFurStrands(particles, column, row);
+    if (ShowFur) {
+        // Setup for fur
+        generateFurStrands(particles, column, row);
+    }
 
     // Generate VAO, VBO, and EBO for the mesh
     glGenVertexArrays(1, &VAO);
@@ -545,53 +580,58 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), &indices[0], GL_STATIC_DRAW);
 
-    // Generate VAO, VBO, and EBO for fur
-    glGenVertexArrays(1, &furVAO);
-    glGenBuffers(1, &furVBO);
-    glGenBuffers(1, &furTexCoordVBO);
-    glGenBuffers(1, &furLengthVBO);
-    glGenBuffers(1, &furEBO);
+    if (ShowFur) {
+        // Generate VAO, VBO, and EBO for fur
+        glGenVertexArrays(1, &furVAO);
+        glGenBuffers(1, &furVBO);
+        glGenBuffers(1, &furTexCoordVBO);
+        glGenBuffers(1, &furLengthVBO);
+        glGenBuffers(1, &furEBO);
 
-    glBindVertexArray(furVAO);
+        glBindVertexArray(furVAO);
 
-    // Bind VBO for fur vertex positions
-    glBindBuffer(GL_ARRAY_BUFFER, furVBO);
-    glBufferData(GL_ARRAY_BUFFER, furVertices.size() * sizeof(glm::vec3), &furVertices[0], GL_DYNAMIC_DRAW);
+        // Bind VBO for fur vertex positions
+        glBindBuffer(GL_ARRAY_BUFFER, furVBO);
+        glBufferData(GL_ARRAY_BUFFER, furVertices.size() * sizeof(glm::vec3), &furVertices[0], GL_DYNAMIC_DRAW);
 
-    // Set vertex attributes for position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(0);
+        // Set vertex attributes for position
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(0);
 
-    // Calculate normals for fur (the same normals as the base mesh)
-    std::vector<glm::vec3> furNormals;
-    furNormals.resize(furVertices.size(), glm::vec3(0.0f, 1.0f, 0.0f)); // Default normal
+        // Calculate normals for fur (the same normals as the base mesh)
+        std::vector<glm::vec3> furNormals;
+        furNormals.resize(furVertices.size(), glm::vec3(0.0f, 1.0f, 0.0f)); // Default normal
 
-    // Bind VBO for fur normals (using cloth normals)
-    glGenBuffers(1, &furNormalVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, furNormalVBO);
-    glBufferData(GL_ARRAY_BUFFER, furNormals.size() * sizeof(glm::vec3), &furNormals[0], GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(1);
+        // Bind VBO for fur normals (using cloth normals)
+        glGenBuffers(1, &furNormalVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, furNormalVBO);
+        glBufferData(GL_ARRAY_BUFFER, furNormals.size() * sizeof(glm::vec3), &furNormals[0], GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(1);
 
-    // Binds VBO for Texture Coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
-    glBufferData(GL_ARRAY_BUFFER, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data(), GL_DYNAMIC_DRAW);
-    
-    // Sets vertex attributes for Texture Coordinates
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
-    glEnableVertexAttribArray(2);
+        // Binds VBO for Texture Coordinates
+        glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
+        glBufferData(GL_ARRAY_BUFFER, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data(), GL_DYNAMIC_DRAW);
 
-    // Bind VBO for fur length attribute
-    glBindBuffer(GL_ARRAY_BUFFER, furLengthVBO);
-    glBufferData(GL_ARRAY_BUFFER, furLengths.size() * sizeof(float), furLengths.data(), GL_DYNAMIC_DRAW);
+        // Sets vertex attributes for Texture Coordinates
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+        glEnableVertexAttribArray(2);
 
-    // Set vertex attribute for fur length
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-    glEnableVertexAttribArray(3);
+        // Bind VBO for fur length attribute
+        glBindBuffer(GL_ARRAY_BUFFER, furLengthVBO);
+        glBufferData(GL_ARRAY_BUFFER, furLengths.size() * sizeof(float), furLengths.data(), GL_DYNAMIC_DRAW);
 
-    // Bind EBO for fur indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, furIndices.size() * sizeof(GLuint), &furIndices[0], GL_STATIC_DRAW);
+        // Set vertex attribute for fur length
+        glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        glEnableVertexAttribArray(3);
+
+        // Bind EBO for fur indices
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, furIndices.size() * sizeof(GLuint), &furIndices[0], GL_STATIC_DRAW);
+    }
+    else {
+        furVAO = furVBO = furEBO = 0;
+    }
 
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -664,116 +704,117 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glBindBuffer(GL_ARRAY_BUFFER, normalVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, normals.size() * sizeof(glm::vec3), &normals[0]);
 
-    // Precompute random offsets for fur strands
-    static std::vector<glm::vec3> randomOffsets;
-    if (randomOffsets.empty()) {
-        randomOffsets.reserve(indices.size() / 3 * 10); // 10 layers of fur
-        for (int i = 0; i < indices.size() / 3 * 10; ++i) {
-            float randomOffsetX = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
-            float randomOffsetY = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
-            randomOffsets.emplace_back(randomOffsetX, randomOffsetY, 0.0f);
+    if (ShowFur) {
+        // Precompute random offsets for fur strands
+        static std::vector<glm::vec3> randomOffsets;
+        if (randomOffsets.empty()) {
+            randomOffsets.reserve(indices.size() / 3 * 10); // 10 layers of fur
+            for (int i = 0; i < indices.size() / 3 * 10; ++i) {
+                float randomOffsetX = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
+                float randomOffsetY = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
+                randomOffsets.emplace_back(randomOffsetX, randomOffsetY, 0.0f);
+            }
         }
-    }
 
-    // Generate fur vertices and indices
-    furVertices.clear();
-    furIndices.clear();
-    furTexCoords.clear();
-    furLengths.clear();
+        // Generate fur vertices and indices
+        furVertices.clear();
+        furIndices.clear();
+        furTexCoords.clear();
+        furLengths.clear();
 
-    float furDensity = 0.15f; // Distance between fur base points
-    int furLayers = 10; // Number of layers for the fur
-    float furLength = 0.025f; // Length of each fur strand
+        float furDensity = 0.15f; // Distance between fur base points
+        int furLayers = 10; // Number of layers for the fur
+        float furLength = 0.025f; // Length of each fur strand
 
-    #pragma omp parallel for
-    for (int i = 0; i < indices.size(); i += 3) {
-        // Get the three vertices of the triangle
-        glm::vec3 v0 = vertices[indices[i]];
-        glm::vec3 v1 = vertices[indices[i + 1]];
-        glm::vec3 v2 = vertices[indices[i + 2]];
+#pragma omp parallel for
+        for (int i = 0; i < indices.size(); i += 3) {
+            // Get the three vertices of the triangle
+            glm::vec3 v0 = vertices[indices[i]];
+            glm::vec3 v1 = vertices[indices[i + 1]];
+            glm::vec3 v2 = vertices[indices[i + 2]];
 
-        glm::vec2 t0 = texCoords[indices[i]];
-        glm::vec2 t1 = texCoords[indices[i + 1]];
-        glm::vec2 t2 = texCoords[indices[i + 2]];
+            glm::vec2 t0 = texCoords[indices[i]];
+            glm::vec2 t1 = texCoords[indices[i + 1]];
+            glm::vec2 t2 = texCoords[indices[i + 2]];
 
-        // Calculate the normal of the triangle
-        glm::vec3 edge1 = v1 - v0;
-        glm::vec3 edge2 = v2 - v0;
-        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+            // Calculate the normal of the triangle
+            glm::vec3 edge1 = v1 - v0;
+            glm::vec3 edge2 = v2 - v0;
+            glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
 
-        // Generate interpolated points across the triangle
-        for (float u = 0.0f; u <= 1.0f; u += furDensity) {
-            for (float v = 0.0f; v <= (1.0f - u); v += furDensity) {
-                // Barycentric coordinates
-                const float w = 1.0f - u - v;
+            // Generate interpolated points across the triangle
+            for (float u = 0.0f; u <= 1.0f; u += furDensity) {
+                for (float v = 0.0f; v <= (1.0f - u); v += furDensity) {
+                    // Barycentric coordinates
+                    const float w = 1.0f - u - v;
 
-                // Barycentric interpolation to get the base point
-                glm::vec3 basePoint = v0 * w + v1 * u + v2 * v;
+                    // Barycentric interpolation to get the base point
+                    glm::vec3 basePoint = v0 * w + v1 * u + v2 * v;
 
-                // Texture coordinate interpolation
-                glm::vec2 baseTexCoord = t0 * w + t1 * u + t2 * v;
+                    // Texture coordinate interpolation
+                    glm::vec2 baseTexCoord = t0 * w + t1 * u + t2 * v;
 
-                // Generate fur strands along the normal
-                int baseIndex = furVertices.size();
+                    // Generate fur strands along the normal
+                    int baseIndex = furVertices.size();
 
-                // Generate fur strands along the normal
-                for (int layer = 0; layer < furLayers; ++layer) {
-                    float t = static_cast<float>(layer) / furLayers;
-                    glm::vec3 furPos = basePoint - normal * furLength * t;
+                    // Generate fur strands along the normal
+                    for (int layer = 0; layer < furLayers; ++layer) {
+                        float t = static_cast<float>(layer) / furLayers;
+                        glm::vec3 furPos = basePoint - normal * furLength * t;
 
-                    // Add precomputed randomness to the fur direction
-                    furPos += randomOffsets[(i / 3) * furLayers + layer] * t;
-                    
-                    #pragma omp critical
-                    {
-                        furVertices.push_back(furPos);
-                        furTexCoords.push_back(baseTexCoord);
-                        furLengths.push_back(t);
+                        // Add precomputed randomness to the fur direction
+                        furPos += randomOffsets[(i / 3) * furLayers + layer] * t;
 
-                        // Connect fur strands to the base point
-                        if (layer > 0) {
-                            furIndices.push_back(furVertices.size() - 2);
-                            furIndices.push_back(furVertices.size() - 1);
+#pragma omp critical
+                        {
+                            furVertices.push_back(furPos);
+                            furTexCoords.push_back(baseTexCoord);
+                            furLengths.push_back(t);
+
+                            // Connect fur strands to the base point
+                            if (layer > 0) {
+                                furIndices.push_back(furVertices.size() - 2);
+                                furIndices.push_back(furVertices.size() - 1);
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    // Calculate fur normals (same as cloth triangle normals)
-    std::vector<glm::vec3> furNormals;
-    furNormals.resize(furVertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
+        // Calculate fur normals (same as cloth triangle normals)
+        std::vector<glm::vec3> furNormals;
+        furNormals.resize(furVertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
 
-    for (size_t i = 0; i < furIndices.size(); i += 2) {
-        if (i + 1 < furIndices.size()) {
-            glm::vec3 v0 = furVertices[furIndices[i]];
-            glm::vec3 v1 = furVertices[furIndices[i + 1]];
-            glm::vec3 dir = glm::normalize(v1 - v0);
-            // Perpendicular to the strand direction (approximate normal)
-            glm::vec3 normal = glm::normalize(glm::vec3(-dir.y, dir.x, dir.z));
+        for (size_t i = 0; i < furIndices.size(); i += 2) {
+            if (i + 1 < furIndices.size()) {
+                glm::vec3 v0 = furVertices[furIndices[i]];
+                glm::vec3 v1 = furVertices[furIndices[i + 1]];
+                glm::vec3 dir = glm::normalize(v1 - v0);
+                // Perpendicular to the strand direction (approximate normal)
+                glm::vec3 normal = glm::normalize(glm::vec3(-dir.y, dir.x, dir.z));
 
-            furNormals[furIndices[i]] = normal;
-            furNormals[furIndices[i + 1]] = normal;
+                furNormals[furIndices[i]] = normal;
+                furNormals[furIndices[i + 1]] = normal;
+            }
         }
+
+        // Update fur vertex buffer
+        glBindBuffer(GL_ARRAY_BUFFER, furVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, furVertices.size() * sizeof(glm::vec3), &furVertices[0]);
+
+        glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data());
+
+        glBindBuffer(GL_ARRAY_BUFFER, furNormalVBO);
+        glBufferData(GL_ARRAY_BUFFER, furNormals.size() * sizeof(glm::vec3), furNormals.data(), GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ARRAY_BUFFER, furLengthVBO);
+        glBufferData(GL_ARRAY_BUFFER, furLengths.size() * sizeof(float), furLengths.data(), GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, furIndices.size() * sizeof(GLuint), &furIndices[0], GL_DYNAMIC_DRAW);
     }
-
-    // Update fur vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, furVBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, furVertices.size() * sizeof(glm::vec3), &furVertices[0]);
-
-    glBindBuffer(GL_ARRAY_BUFFER, furTexCoordVBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, furTexCoords.size() * sizeof(glm::vec2), furTexCoords.data());
-
-    glBindBuffer(GL_ARRAY_BUFFER, furNormalVBO);
-    glBufferData(GL_ARRAY_BUFFER, furNormals.size() * sizeof(glm::vec3), furNormals.data(), GL_DYNAMIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, furLengthVBO);
-    glBufferData(GL_ARRAY_BUFFER, furLengths.size() * sizeof(float), furLengths.data(), GL_DYNAMIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, furEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, furIndices.size() * sizeof(GLuint), &furIndices[0], GL_DYNAMIC_DRAW);
-
 
     // Set light properties (light position, view position, and color)
     GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
@@ -848,7 +889,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
     // Render fur with a different color
-    if (!furVertices.empty() && !furIndices.empty()) {
+    if (ShowFur && !furVertices.empty() && !furIndices.empty()) {
         glBindVertexArray(furVAO);
         //glm::vec3 furColor(1.0f, 0.0f, 1.0f);  // Red fur
 
@@ -910,7 +951,7 @@ void Application::MainLoop()
         bool should_close = false;
         //for variable speed of movement
         float currentFrame = static_cast<float>(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
+        deltaTime = currentFrame - lastFrame; //=0.016
         lastFrame = currentFrame;
 
         processInput(window);
@@ -929,7 +970,7 @@ void Application::MainLoop()
         imgui_manager.SetupMenuBar(window, &should_close);
         if (should_close)
             glfwSetWindowShouldClose(window, true);
-        // imgui_manager.RenderWireframeToggle();
+            //imgui_manager.RenderWireframeToggle();
         imgui_manager.Render();
         imgui_manager.EndFrame();
 
@@ -948,7 +989,6 @@ void Application::MainLoop()
         // use imported model shaders
         // importedModelShader->use();
 
-        glm::vec3 lightColor(1.0f, 1.0f, 1.0f);  // White light
         GLuint lightColorLoc = glGetUniformLocation(shader->shaderProgram, "lightColor");
         glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
@@ -972,49 +1012,63 @@ void Application::MainLoop()
 
         // ourModel->Draw(*importedModelShader, imgui_manager.wireframeMode);
 
-        // Update to the wind direction periodically
-        windTimer += deltaTime;
-        if (windTimer >= windChangeInterval) {
-            windDirection = getRandomWindDirection(); //Randomizes the wind direction
-            windTimer = 0.0f; //Timer reset
-        }
-
-
-        clothBVH->refit();
-        //std::cout << " Without BVH: " << NewCollision::collisionChecks << "\n";
-        //std::cout << " - With BVH: " << NewCollision::bvhCollisionChecks << "\n";
-
-        // NewCollision::resolveCollision(particles, clothBVH, indices, Sphere, deltaTime, collidingIndices);
-        NewCollision::resolveCollisionWithOutBVH(particles, indices, Sphere, deltaTime, collidingIndices);
-
-        for (auto& particle : particles) {
-            //resolveCollision(particle, Cube   );
-            for (int i = 0; i < 20; ++i) {
-                // Collision::resolveCollision(particle, Sphere, deltaTime);
+        if (StartSimulation) {
+            // Update to the wind direction periodically
+            windTimer += deltaTime;
+            if (windTimer >= windChangeInterval) {
+                windDirection = getRandomWindDirection(); //Randomizes the wind direction
+                windTimer = 0.0f; //Timer reset
             }
 
-            Collision::resolveSelfCollision(particle, particles); // Check self-collision
 
-            if (toggle_wind) {
-                //Generates a random wind strength factor between -windOffsetSpeed and windOffsetSpeed
-                float noise = windScale + ((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * windOffsetSpeed;
-                glm::vec3 wind = windDirection * noise;
-                particle.applyForce(wind);
+            clothBVH->refit();
+            //std::cout << " Without BVH: " << NewCollision::collisionChecks << "\n";
+            //std::cout << " - With BVH: " << NewCollision::bvhCollisionChecks << "\n";
+
+            NewCollision::resolveCollision(particles, clothBVH, indices, Sphere, deltaTime, collidingIndices);
+            //NewCollision::resolveCollisionWithOutBVH(particles, indices, Sphere, deltaTime, collidingIndices);
+
+            for (auto& particle : particles) {
+                //resolveCollision(particle, Cube   );
+                //for (int i = 0; i < 20; ++i) {
+                    // Collision::resolveCollision(particle, Sphere, deltaTime);
+                //}
+
+                Collision::resolveSelfCollision(particle, particles); // Check self-collision
+
+                if (toggle_wind) {
+                    //Generates a random wind strength factor between -windOffsetSpeed and windOffsetSpeed
+                    float noise = windScale + ((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * windOffsetSpeed;
+                    glm::vec3 wind = windDirection * noise;
+                    particle.applyForce(wind);
+                }
+
+                particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
+                particle.update(deltaTime);
+                if(ShowParticle)
+                    particle.render(shader->shaderProgram, view, projection);
             }
 
-            particle.applyForce(glm::vec3(0.0f, gravity, 0.0f)); // Apply gravity
-            particle.update(deltaTime);
-
-            //particle.render(shader->shaderProgram, view, projection);
+            // Update and render springs
+            for (auto& spring : springs) {
+                spring.update();
+                if(ShowSpring)
+                    spring.render(shader->shaderProgram, model, view, projection);
+            }
         }
-
-        // Update and render springs
-        for (auto& spring : springs) {
-            spring.update();
-            //spring.render(shader->shaderProgram, model, view, projection);
-        }
-
         glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f);
+
+        if (!StartSimulation) {
+            for (auto& particle : particles) {
+                if (ShowParticle)
+                    particle.render(shader->shaderProgram, view, projection);
+            }
+
+            for (auto& spring : springs) {
+                if (ShowSpring)
+                    spring.render(shader->shaderProgram, model, view, projection);
+            }
+        }
 
         // Cube.render(shader->shaderProgram,   view, projection, lightPos, cameraPos);
         Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);

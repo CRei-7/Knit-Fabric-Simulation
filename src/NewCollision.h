@@ -6,6 +6,7 @@
 #include "Object.h"
 #include "BVH.h"
 #include <glad/glad.h>
+#include <algorithm>
 
 class NewCollision {
 public:
@@ -45,7 +46,8 @@ private:
     static void resolveParticleCollision(
         Particle& particle,
         const glm::vec3& normal,
-        float penetrationDepth);
+        float penetrationDepth,
+        float deltaTime);
 
     // static void traverseBVHForCollisions(
     //        BVHNode* node,

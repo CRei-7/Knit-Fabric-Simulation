@@ -85,6 +85,7 @@ private:
 
     bool toggle_wind;
     bool tKeyPressed;//Press 'T' for wind
+    bool fKeyPressed;
     void setupCloth();
 
     bool toggleClothOrientation;//true for hanging cloth and false for falling cloth
@@ -119,6 +120,16 @@ private:
     glm::vec3 lightPos;  //light position
     std::vector<glm::vec2> texCoords;
     void calculateNormals();
+    
+    bool ShowFur;
+    bool StartSimulation;
+    bool ShowParticle;
+    bool ShowSpring;
+
+    glm::vec3 lightColor;
+
+    float k; // Structural Spring constant
+    float shearK; // Shear spring constant
 };
 
 #endif // APPLICATION_H

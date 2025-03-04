@@ -16,7 +16,7 @@ bool NewCollision::checkTriangleObjectIntersection(
     // Calculate triangle normal first - this is needed for both cube and sphere
     glm::vec3 edge1 = v2 - v1;
     glm::vec3 edge2 = v3 - v1;
-    normal = glm::normalize(glm::cross(edge1, edge2));
+    normal = -1.0f * glm::normalize(glm::cross(edge1, edge2));
 
     if (object.isCube()) {
         // Get cube bounds
@@ -50,7 +50,7 @@ bool NewCollision::checkTriangleObjectIntersection(
             //                 << "v1(" << v1.x << ", " << v1.y << ", " << v1.z << "), "
             //                 << "v2(" << v2.x << ", " << v2.y << ", " << v2.z << "), "
             //                 << "v3(" << v3.x << ", " << v3.y << ", " << v3.z << ")\n";
-            // return true;
+            return true;
         }
 
         return false;
@@ -149,16 +149,16 @@ void NewCollision::resolveCollision(
             float penetrationDepth3 = glm::dot(normal, intersectionPoint - p3.getPosition());
 
             // Add colliding indices
-            collidingIndices.push_back(triangleIndices[i]);
-            collidingIndices.push_back(triangleIndices[i + 1]);
-            collidingIndices.push_back(triangleIndices[i + 2]);
+            //collidingIndices.push_back(triangleIndices[i]);
+            //collidingIndices.push_back(triangleIndices[i + 1]);
+            //collidingIndices.push_back(triangleIndices[i + 2]);
 
             isColliding = true;
 
             // Resolve collision for each particle
-            resolveParticleCollision(p1, normal, penetrationDepth1);
-            resolveParticleCollision(p2, normal, penetrationDepth2);
-            resolveParticleCollision(p3, normal, penetrationDepth3);
+            resolveParticleCollision(p1, normal, penetrationDepth1, deltaTime);
+            resolveParticleCollision(p2, normal, penetrationDepth2, deltaTime);
+            resolveParticleCollision(p3, normal, penetrationDepth3, deltaTime);
         }
     }
 }
@@ -209,15 +209,15 @@ void NewCollision::resolveCollisionWithOutBVH(
 
                 // isColliding = true;
                 // Push the indices of the colliding triangle
-                collidingIndices.push_back(triangleIndices[i]);
-                collidingIndices.push_back(triangleIndices[i + 1]);
-                collidingIndices.push_back(triangleIndices[i + 2]);
+                //collidingIndices.push_back(triangleIndices[i]);
+                //collidingIndices.push_back(triangleIndices[i + 1]);
+                //collidingIndices.push_back(triangleIndices[i + 2]);
 
                 isColliding = true;
                 // Resolve collision for each particle
-                resolveParticleCollision(p1, normal, penetrationDepth1);
-                resolveParticleCollision(p2, normal, penetrationDepth2);
-                resolveParticleCollision(p3, normal, penetrationDepth3);
+                resolveParticleCollision(p1, normal, penetrationDepth1, deltaTime);
+                resolveParticleCollision(p2, normal, penetrationDepth2, deltaTime);
+                resolveParticleCollision(p3, normal, penetrationDepth3, deltaTime);
             }
         }
     }
@@ -226,7 +226,8 @@ void NewCollision::resolveCollisionWithOutBVH(
 void NewCollision::resolveParticleCollision(
     Particle& particle,
     const glm::vec3& normal,
-    float penetrationDepth) {
+    float penetrationDepth,
+    float deltaTime) {
 
     // std::cout << "Resolving particle collision" << std::endl;
 
@@ -239,10 +240,13 @@ void NewCollision::resolveParticleCollision(
     // Apply repulsion force
     glm::vec3 repulsionForce = normal * (repulsionStrength * std::abs(penetrationDepth));
     particle.applyForce(repulsionForce);
+    particle.update(deltaTime);
 
     // Apply restitution
     glm::vec3 velocityNormal = glm::dot(velocity, normal) * normal;
-    glm::vec3 velocityTangent = velocity - velocityNormal;
+    //std::cout << "normal: { " << normal.x << ", " << normal.y << ", " << normal.z << "}\n";
+    //std::cout << "velocityNormal: { " << velocity.x << ", " << velocity.y << ", " << velocity.z << "}\n";
+    glm::vec3 velocityTangent = velocityNormal - velocity;
     glm::vec3 newVelocity = velocityTangent - velocityNormal * restitution;
 
     // Update particle

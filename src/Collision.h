@@ -122,8 +122,7 @@ public:
             if (&particle != &other) { // Ensure we're not comparing the particle with itself
                 glm::vec3 otherPosition = other.getPosition();
                 float distance = glm::length(position - otherPosition);
-                float combinedRadius = particle.getRadius() + other.getRadius(); // Assuming getRadius() returns the radius in normalized coordinates
-
+                float combinedRadius = particle.getRadius() + other.getRadius();
                 if (distance < combinedRadius) { // Collision detected
                     // Calculate the normal vector
                     glm::vec3 normal = glm::normalize(position - otherPosition);
