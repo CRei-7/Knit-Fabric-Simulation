@@ -135,6 +135,25 @@ void ImGuiManager::Render()
             ImGui::InputFloat("Shear Spring Constant", ShearK, 0.1f, 1.0f, "%.3f");  // Adjust format specifier as needed
         }
 
+        if (BendK) {
+            ImGui::InputFloat("Bending Spring Constant", BendK, 0.1f, 1.0f, "%.3f");  // Adjust format specifier as needed
+        }
+
+        ImGui::EndGroup();
+
+        ImGui::Spacing();
+
+        ImGui::BeginGroup();
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Objects");
+        ImGui::Separator();
+        if (SelectCube && SelectSphere) {
+            ImGui::Checkbox("Show Cube", SelectCube);
+            ImGui::SameLine();
+            ImGui::Checkbox("Show Sphere", SelectSphere);
+
+            if (*SelectCube) *SelectSphere = false;
+            if (*SelectSphere) *SelectCube = false;
+        }
         ImGui::EndGroup();
 
         ImGui::Spacing();
@@ -204,6 +223,87 @@ void ImGuiManager::Render()
 
         ImGui::Spacing();
 
+        ImGui::BeginGroup();
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Material Properties");
+        ImGui::Separator();
+
+        static const char* materialTypes[] = {
+            "Default",
+            "Linen",
+            "Cotton",
+            "Silk",
+            "Wool",
+            "Polyester",
+            "Denim",
+            "Lycra"
+        };
+
+        struct MaterialPreset {
+            float structuralK;
+            float shearMultiplier;
+            float bendMultiplier;
+            const char* textureFile;
+        };
+
+        static const MaterialPreset materials[] = {
+            //Default
+            {100.0f, 0.35f, 0.15f, "./fabric_images/real_madrid.jpg"},
+            // Linen
+            {100.0f, 0.3f, 0.1f, "./fabric_images/linen.jpg"},
+            // Cotton
+            {90.0f,  0.3f, 0.1f, "./fabric_images/cotton.jpg"},
+            // Silk
+            {50.0f,  0.4f, 0.05f, "./fabric_images/silk.jpg"},
+            // Wool
+            {120.0f, 0.25f, 0.15f, "./fabric_images/wool.jpg"},
+            // Polyester
+            {80.0f,  0.5f, 0.2f, "./fabric_images/polyester.jpg"},
+            // Denim
+            {200.0f, 0.35f, 0.25f, "./fabric_images/denim.jpg"},
+            // Lycra
+            {30.0f,  0.7f, 0.02f, "./fabric_images/lycra.jpg"}
+        };
+
+        if (ImGui::BeginCombo("Material Type", materialTypes[currentMaterialIndex]))
+        {
+            for (int n = 0; n < IM_ARRAYSIZE(materialTypes); n++)
+            {
+                bool isSelected = (currentMaterialIndex == n);
+                if (ImGui::Selectable(materialTypes[n], isSelected))
+                {
+                    currentMaterialIndex = n;
+
+                    if (k && ShearK && BendK) {
+                        *k = materials[n].structuralK;
+                        *ShearK = *k * materials[n].shearMultiplier;
+                        *BendK = *k * materials[n].bendMultiplier;
+                        texturePath = materials[n].textureFile;
+                    }
+
+                    // If you have a clothNeedsReset flag, you might want to set it here
+                    if (clothNeedsReset) {
+                        *clothNeedsReset = true;
+                    }
+
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        // Optional: Display additional material-specific parameters
+        ImGui::Text("Selected Material: %s", materialTypes[currentMaterialIndex]);
+
+        // You could add more material-specific controls here
+        // For example, thickness, density, or custom spring constants
+
+        ImGui::EndGroup();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
         //if (ImGui::Button("Button"))
         //    counter++;
         //ImGui::SameLine();
@@ -227,6 +327,10 @@ void ImGuiManager::RenderWireframeToggle()
     }
     ImGui::PopFont();
     ImGui::End();
+}
+
+int ImGuiManager::GetFabricTypeUniform() {
+    return currentMaterialIndex;
 }
 
 void ImGuiManager::Cleanup()

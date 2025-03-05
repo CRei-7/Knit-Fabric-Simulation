@@ -15,10 +15,11 @@ private:
     float halfLength; // For object dimensions
     GLuint VAO, VBO, EBO;
     glm::vec3 color;
-    ObjectType objectType; // To differentiate between object and sphere
+    
 
 public:
     Object() : VAO(0), VBO(0), EBO(0), color(glm::vec3(1.0f, 0.0f, 1.0f)), objectType(ObjectType::Cube) {}
+    ObjectType objectType; // To differentiate between object and sphere
 
     ~Object() {
         glDeleteVertexArrays(1, &VAO);

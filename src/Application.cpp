@@ -62,12 +62,16 @@ bool Application::Init()
     ShowSpring = false;
 
     k = 100.0f; // Structural Spring constant
-    shearK = 10.5f; // Shear spring constant
+    shearK = k * 0.3f; // Shear spring constant
+    bendK = k * 0.1f; // Lower stiffness for bend springs
+
+    StaticFrictionCoefficient = 0.6f;
+    KineticFrictionCoefficient = 0.4f;
 
     lightPos = glm::vec3(0.0f, 1.0f, 1.0f);
     lightColor = { 1.0f, 1.0f, 1.0f };  // White light
 
-    filename = "real_madrid.jpg";
+    filename = "./fabric_images/real_madrid.jpg";
 
     glfwSwapInterval(1); // Enable vsync
 
@@ -92,6 +96,10 @@ bool Application::Init()
 
     imgui_manager.SetK(&k);
     imgui_manager.SetShearK(&shearK);
+    imgui_manager.SetBendK(&bendK);
+
+    imgui_manager.SetCube(&SelectCube);
+    imgui_manager.SetSphere(&SelectSphere);
 
     imgui_manager.SetTexturePath(&filename);
 
@@ -497,6 +505,25 @@ void Application::setupCloth() {
         }
     }
 
+    // Bend springs for better cloth draping and resistance to bending
+    for (int i = 0; i < column; ++i) {
+        for (int j = 0; j < row; ++j) {
+            // Horizontal bend springs (skip 1 particle)
+            if (i < column - 2) {
+                springs.emplace_back(bendK, disX * 2,
+                    &particles[i * row + j],
+                    &particles[(i + 2) * row + j]);
+            }
+
+            // Vertical bend springs (skip 1 particle)
+            if (j < row - 2) {
+                springs.emplace_back(bendK, disY * 2,
+                    &particles[i * row + j],
+                    &particles[i * row + (j + 2)]);
+            }
+        }
+    }
+
     setupClothMesh(particles, column, row);
 }
 
@@ -859,6 +886,9 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     GLuint useTextureLoc = glGetUniformLocation(shaderProgram, "useTexture");
     glUniform1i(useTextureLoc, 1); // 1 = use texture
 
+    GLint loc = glGetUniformLocation(shaderProgram, "fabricType");
+    glUniform1i(loc, imgui_manager.GetFabricTypeUniform());
+
     // This is to invert the normal if the associated face is the back face.
     GLuint isBackFaceLoc = glGetUniformLocation(shaderProgram, "isBackFace");
     glUniform1i(isBackFaceLoc, 1); // 1 = backface
@@ -956,11 +986,28 @@ void Application::MainLoop()
     //Object Cube;
     //Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
 
-    Object Sphere;
-    Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
+    //Object Sphere;
+    //Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
 
     while (!glfwWindowShouldClose(window))
     {
+
+        if (SelectCube) {
+            if (!currentObject || currentObject->objectType != ObjectType::Cube) {
+                currentObject = std::make_unique<Object>();
+                currentObject->SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
+            }
+        }
+        else if (SelectSphere) {
+            if (!currentObject || currentObject->objectType != ObjectType::Sphere) {
+                currentObject = std::make_unique<Object>();
+                currentObject->SetupSphere(0.3f, glm::vec3(0.0f, -0.2f, 0.5f));
+            }
+        }
+        else {
+            currentObject.reset(); // Destroy if no selection
+        }
+
         bool should_close = false;
         //for variable speed of movement
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -1037,8 +1084,8 @@ void Application::MainLoop()
             clothBVH->refit();
             //std::cout << " Without BVH: " << NewCollision::collisionChecks << "\n";
             //std::cout << " - With BVH: " << NewCollision::bvhCollisionChecks << "\n";
-
-            NewCollision::resolveCollision(particles, clothBVH, indices, Sphere, deltaTime, collidingIndices);
+            if(currentObject)
+                NewCollision::resolveCollision(particles, clothBVH, indices, *currentObject, deltaTime, collidingIndices, StaticFrictionCoefficient, KineticFrictionCoefficient);
             //NewCollision::resolveCollisionWithOutBVH(particles, indices, Sphere, deltaTime, collidingIndices);
 
             for (auto& particle : particles) {
@@ -1052,7 +1099,14 @@ void Application::MainLoop()
                 if (toggle_wind) {
                     //Generates a random wind strength factor between -windOffsetSpeed and windOffsetSpeed
                     float noise = windScale + ((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * windOffsetSpeed;
-                    glm::vec3 wind = windDirection * noise;
+                    // Add turbulence and noise to wind
+                    float turbulence = sin(windTimer * 2.0f) * 0.1f;
+                    glm::vec3 windVariation = glm::vec3(
+                        turbulence * sin(particle.getPosition().x),
+                        turbulence * cos(particle.getPosition().y),
+                        turbulence * sin(particle.getPosition().z)
+                    );
+                    glm::vec3 wind = windDirection * noise + windVariation;
                     particle.applyForce(wind);
                 }
 
@@ -1084,7 +1138,8 @@ void Application::MainLoop()
         }
 
         //Cube.render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);
-        Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);
+        if(currentObject)
+            currentObject->render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);
 
         renderClothMesh(shader->shaderProgram, particles, view, projection);
         // table->Draw(shader->shaderProgram, glm::mat4(1.0f), view, projection);

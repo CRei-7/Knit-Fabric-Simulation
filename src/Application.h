@@ -132,8 +132,15 @@ private:
 
     float k; // Structural Spring constant
     float shearK; // Shear spring constant
+    float bendK;
+
+    float StaticFrictionCoefficient, KineticFrictionCoefficient;
 
     std::string filename;
+
+    std::unique_ptr<Object> currentObject;
+    bool SelectCube = false;
+    bool SelectSphere = false;
 };
 
 #endif // APPLICATION_H

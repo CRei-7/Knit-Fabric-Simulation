@@ -5,6 +5,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "ImGuiFileDialog.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -43,12 +44,19 @@ public:
 
     void SetK(float* ptr) { k = ptr; }
     void SetShearK(float* ptr) { ShearK = ptr; }
+    void SetBendK(float* ptr) { BendK = ptr; }
 
     void SetLightPosition(glm::vec3* ptr) { LightPosition = ptr; }
     void SetLightColor(glm::vec3* ptr) { LightColor = ptr; }
 
     void SetTexturePath(std::string* ptr) { texturePath = *ptr; }
     std::string GetTexturePath() { return texturePath; }
+
+    void SetSphere(bool* ptr) { SelectSphere = ptr; }
+    void SetCube(bool* ptr) { SelectCube = ptr; }
+
+    int GetFabricTypeUniform();
+
 private:
     ImVec4 clear_color;
     bool show_demo_window;
@@ -72,9 +80,16 @@ private:
 
     float* k;
     float* ShearK;
+    float* BendK;
 
     std::string texturePath;
     bool showFileDialog = false;
+
+    bool* SelectSphere;
+    bool* SelectCube;
+
+    int currentMaterialIndex = 0;
+    //int* fabricType;
 };
 
 #endif // IMGUIMANAGER_H
