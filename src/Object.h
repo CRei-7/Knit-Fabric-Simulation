@@ -178,41 +178,20 @@ public:
             int k2 = k1 + sectorCount + 1;  // Beginning of next stack
 
             for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+                // Fixed code (CCW winding):
                 if (i != 0) {
                     indices.push_back(k1);
+                    indices.push_back(k1 + 1);  // Changed order
                     indices.push_back(k2);
-                    indices.push_back(k1 + 1);
                 }
 
                 if (i != (stackCount - 1)) {
                     indices.push_back(k1 + 1);
+                    indices.push_back(k2 + 1);  // Changed order
                     indices.push_back(k2);
-                    indices.push_back(k2 + 1);
                 }
             }
         }
-
-        /*// Compute indices for sphere (triangles)
-        for (int i = 0; i < stackCount; ++i) {
-            int k1 = i * (sectorCount + 1); // Beginning of current stack
-            int k2 = k1 + sectorCount + 1;  // Beginning of next stack
-
-            for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
-                if (i != 0) {
-                    // Reverse the winding order here
-                    indices.push_back(k2);
-                    indices.push_back(k1);
-                    indices.push_back(k1 + 1);
-                }
-
-                if (i != (stackCount - 1)) {
-                    // Reverse the winding order here as well
-                    indices.push_back(k2 + 1);
-                    indices.push_back(k2);
-                    indices.push_back(k1 + 1);
-                }
-            }
-        }*/
 
         // Generate VAO, VBO, EBO
         glGenVertexArrays(1, &VAO);
@@ -243,6 +222,9 @@ public:
         glm::mat4 model = glm::mat4(1.0f);
 
         glUseProgram(shaderProgram);
+        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Set uniform matrices
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));

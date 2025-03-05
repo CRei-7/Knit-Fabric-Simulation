@@ -38,6 +38,8 @@ public:
     Model* ourModel;
     // Mesh* table;
 
+    void TextureSetup();
+
 private:
     GLFWwindow* window;
     ImGuiManager imgui_manager;
@@ -130,6 +132,8 @@ private:
 
     float k; // Structural Spring constant
     float shearK; // Shear spring constant
+
+    std::string filename;
 };
 
 #endif // APPLICATION_H

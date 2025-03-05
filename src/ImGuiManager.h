@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "ImGuiFileDialog.h"
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -45,6 +46,9 @@ public:
 
     void SetLightPosition(glm::vec3* ptr) { LightPosition = ptr; }
     void SetLightColor(glm::vec3* ptr) { LightColor = ptr; }
+
+    void SetTexturePath(std::string* ptr) { texturePath = *ptr; }
+    std::string GetTexturePath() { return texturePath; }
 private:
     ImVec4 clear_color;
     bool show_demo_window;
@@ -68,6 +72,9 @@ private:
 
     float* k;
     float* ShearK;
+
+    std::string texturePath;
+    bool showFileDialog = false;
 };
 
 #endif // IMGUIMANAGER_H

@@ -143,6 +143,31 @@ void ImGuiManager::Render()
         ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Visualization");
         ImGui::Separator();
 
+        if (ImGui::Button("Load Texture")) {
+            showFileDialog = true;
+        }
+        if (!texturePath.empty()) {
+            ImGui::Text("Texture: %s", texturePath.c_str());
+        }
+
+        if (showFileDialog) {
+            ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+            
+            IGFD::FileDialogConfig config;
+            config.path = ".";
+            
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseTextureFile", "Choose Texture", "Image files{.jpg,.jpeg,.png},.*", config);
+            showFileDialog = false;
+        }
+
+        // Handles file selection
+        if (ImGuiFileDialog::Instance()->Display("ChooseTextureFile")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) {
+                texturePath = ImGuiFileDialog::Instance()->GetFilePathName();
+            }
+            ImGuiFileDialog::Instance()->Close();
+        }
+
         if (showFur) {
             ImGui::Checkbox("Show Fur", showFur);
         }

@@ -67,6 +67,8 @@ bool Application::Init()
     lightPos = glm::vec3(0.0f, 1.0f, 1.0f);
     lightColor = { 1.0f, 1.0f, 1.0f };  // White light
 
+    filename = "real_madrid.jpg";
+
     glfwSwapInterval(1); // Enable vsync
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -90,6 +92,8 @@ bool Application::Init()
 
     imgui_manager.SetK(&k);
     imgui_manager.SetShearK(&shearK);
+
+    imgui_manager.SetTexturePath(&filename);
 
     std::cout << "GPU: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
@@ -409,7 +413,7 @@ void Application::generateFurStrands(const std::vector<Particle>& particles, int
                 // Generate fur strands along the normal
                 for (int layer = 0; layer < furLayers; ++layer) {
                     float t = static_cast<float>(layer) / furLayers;
-                    glm::vec3 furPos = basePoint - normal * furLength * t;
+                    glm::vec3 furPos = basePoint + normal * furLength * t;
 
                     // Add precomputed randomness to the fur direction
                     furPos += randomOffsets[(i / 3) * furLayers + layer] * t;
@@ -526,15 +530,15 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     indices.reserve((column - 1) * (row - 1) * 6);
     for (int i = 0; i < column - 1; ++i) {
         for (int j = 0; j < row - 1; ++j) {
-            // Top-left triangle
+            // Top-left triangle (CCW)
             indices.push_back(i * row + j);
-            indices.push_back((i + 1) * row + j);
-            indices.push_back(i * row + (j + 1));
+            indices.push_back(i * row + (j + 1)); // Changed
+            indices.push_back((i + 1) * row + j); // Changed
 
-            // Bottom-right triangle
+            // Bottom-right triangle (CCW)
             indices.push_back((i + 1) * row + (j + 1));
-            indices.push_back(i * row + (j + 1));
-            indices.push_back((i + 1) * row + j);
+            indices.push_back((i + 1) * row + j); // Changed
+            indices.push_back(i * row + (j + 1)); // Changed
         }
     }
 
@@ -633,6 +637,12 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
         furVAO = furVBO = furEBO = 0;
     }
 
+    TextureSetup();
+
+    glBindVertexArray(0);
+}
+
+void Application::TextureSetup() {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -640,9 +650,10 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     int width, height, nrChannels;
-    unsigned char* data = stbi_load("real_madrid.jpg", &width, &height, &nrChannels, 0);
+    unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nrChannels, 0);
     if (data)
     {
+        std::cout << "Data has beenloaded" << endl;
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
     }
@@ -652,7 +663,7 @@ void Application::setupClothMesh(const std::vector<Particle>& particles, int col
     }
     stbi_image_free(data);
 
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
 }
 
 void Application::calculateNormals() {
@@ -760,7 +771,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
                     // Generate fur strands along the normal
                     for (int layer = 0; layer < furLayers; ++layer) {
                         float t = static_cast<float>(layer) / furLayers;
-                        glm::vec3 furPos = basePoint - normal * furLength * t;
+                        glm::vec3 furPos = basePoint + normal * furLength * t;
 
                         // Add precomputed randomness to the fur direction
                         furPos += randomOffsets[(i / 3) * furLayers + layer] * t;
@@ -852,7 +863,8 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     GLuint isBackFaceLoc = glGetUniformLocation(shaderProgram, "isBackFace");
     glUniform1i(isBackFaceLoc, 1); // 1 = backface
 
-    glCullFace(GL_FRONT);  // Cull the back faces, render front faces
+    glFrontFace(GL_CW);
+    glCullFace(GL_BACK);  // Cull the back faces, render front faces
 
     bool currentCollision = NewCollision::isColliding;
     // std::cout<<"currentCollision: "<<currentCollision<<std::endl;
@@ -875,7 +887,7 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glm::vec3 backColor(1.0f, 1.0f, 1.0f);  // Color for the back face
     
     glUniform1i(isBackFaceLoc, 0);
-    glCullFace(GL_BACK);  // Cull the front faces, render back faces
+    glCullFace(GL_FRONT);  // Cull the front faces, render back faces
 
     // Turn off texturing for back face if desired
     glUniform1i(useTextureLoc, 1); // 0 = don't use texture
@@ -888,10 +900,11 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
     glUniform3fv(colorLoc, 1, glm::value_ptr(backColor));
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
+    glFrontFace(GL_CCW);
     // Render fur with a different color
     if (ShowFur && !furVertices.empty() && !furIndices.empty()) {
         glBindVertexArray(furVAO);
-        //glm::vec3 furColor(1.0f, 0.0f, 1.0f);  // Red fur
+        //glm::vec3 furColor(1.0f, 0.0f, 0.0f);  // Red fur
 
         // Set fur to not use texture
         //glUniform1i(useTextureLoc, 0);
@@ -940,8 +953,8 @@ void Application::renderClothMesh(GLuint shaderProgram, const std::vector<Partic
 void Application::MainLoop()
 {
     setupCloth();
-    // Object Cube;
-    // Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
+    //Object Cube;
+    //Cube.SetupCube(0.4f, glm::vec3(0.0f, -0.2f, 0.5f));
 
     Object Sphere;
     Sphere.SetupSphere(0.3f, glm::vec3(0.0, -0.2, 0.5));
@@ -1070,13 +1083,19 @@ void Application::MainLoop()
             }
         }
 
-        // Cube.render(shader->shaderProgram,   view, projection, lightPos, cameraPos);
+        //Cube.render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);
         Sphere.render(shader->shaderProgram, view, projection, lightPos, cameraPos, color);
 
         renderClothMesh(shader->shaderProgram, particles, view, projection);
         // table->Draw(shader->shaderProgram, glm::mat4(1.0f), view, projection);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        if (filename != imgui_manager.GetTexturePath()) {
+            glDeleteTextures(1, &texture);
+            filename = imgui_manager.GetTexturePath();
+            TextureSetup();
+        }
 
         glfwSwapBuffers(window);
     }
